@@ -1,5 +1,6 @@
 import type { Game, Blueprint } from '@michiko/types';
 import { auth } from './firebase';
+import type { WizardData } from './../pages/GameWizard/GameWizard';
 
 async function getHeaders(): Promise<Record<string, string>> {
   const user = auth.currentUser;
@@ -23,7 +24,8 @@ export const api = {
     return res.json();
   },
 
-async createGame(data: Omit<Game, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'> & { topic?: string }): Promise<Game> {    const res = await fetch('/api/games', {
+  async createGame(data: Omit<Game, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'> & { topic?: string }): Promise<Game> {
+    const res = await fetch('/api/games', {
       method: 'POST',
       headers: await getHeaders(),
       body: JSON.stringify(data),
@@ -54,5 +56,15 @@ async createGame(data: Omit<Game, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'> 
       headers: await getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to approve blueprint');
+  },
+
+  async generateBlueprint(wizardData: WizardData & { gameId: string }): Promise<Blueprint> {
+    const res = await fetch('/api/blueprints/generate', {
+      method: 'POST',
+      headers: await getHeaders(),
+      body: JSON.stringify(wizardData),
+    });
+    if (!res.ok) throw new Error('Failed to generate blueprint');
+    return res.json();
   },
 };

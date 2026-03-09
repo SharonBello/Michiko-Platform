@@ -61,15 +61,9 @@ export default function GameWizard() {
                 description: `${data.subject} game about ${data.topic}`,
             });
 
-            // 2. Generate blueprint (mock AI — Phase 5 will call real AI)
-            const blueprint = mockGenerateBlueprint({ ...data, gameId: game.id } as WizardData & { gameId: string });
-
-            // 3. Save blueprint
-            const saved = await api.saveBlueprint({ ...blueprint, gameId: game.id });
-
-            // 4. Navigate to generating screen
+            // 2. Navigate to generating screen (AI runs during the animation)
             navigate('/blueprint/generating', {
-                state: { wizardData: data, gameId: game.id, blueprintId: saved.id },
+                state: { wizardData: data, gameId: game.id },
             });
         } catch (err) {
             console.error('Submit error:', err);
