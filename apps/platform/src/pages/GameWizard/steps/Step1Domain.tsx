@@ -1,5 +1,11 @@
 import type { WizardData } from '../GameWizard';
+import { useStep1Form } from './step1/useStep1Form';
+import { useAiValidation } from './step1/useAiValidation';
+import { SubjectPicker } from './step1/SubjectPicker';
+import { AgeGroupPicker } from './step1/AgeGroupPicker';
+import { AiValidationBox } from './step1/AiValidationBox';
 import styles from '../WizardStep.module.scss';
+import localStyles from './step1/Step1Domain.module.scss';
 
 interface Props {
     data: WizardData;
@@ -8,19 +14,19 @@ interface Props {
     onBack: () => void;
 }
 
-const SUBJECTS = [
-    { value: 'math', label: '🔢 Math' },
-    { value: 'science', label: '🔬 Science' },
-    { value: 'history', label: '🏛 History' },
-    { value: 'language', label: '📖 Language' },
-    { value: 'geography', label: '🌍 Geography' },
-    { value: 'arts', label: '🎨 Arts' },
-];
-
-const AGE_GROUPS = ['5-7', '7-9', '9-11', '11-14', '12-15', '14-18'];
-
 export function Step1Domain({ data, update, onNext }: Props) {
-    const canNext = data.subject !== '' && data.topic.trim() !== '' && data.ageGroup !== '';
+    const form = useStep1Form(data);
+    const ai = useAiValidation();
+
+    async function handleNext() {
+        if (!form.validate()) return;
+        if (ai.state === 'idle' || ai.state === 'warning') {
+            const passed = await ai.check(data.subject, data.topic);
+            if (passed) setTimeout(onNext, 400);
+        }
+    }
+
+    function handleOverride() { onNext(); }
 
     return (
         <div className={styles.step}>
@@ -29,66 +35,58 @@ export function Step1Domain({ data, update, onNext }: Props) {
                 <p className={styles.sub}>Define the subject, topic and age group for this game.</p>
             </div>
 
-            {/* Title */}
             <div className={styles.field}>
                 <label className={styles.label}>Game title</label>
                 <input
-                    className={styles.input}
+                    className={`${styles.input} ${form.errors.title ? localStyles.inputError : ''}`}
                     type="text"
                     placeholder="e.g. Solar System Explorer"
                     value={data.title}
-                    onChange={e => update({ title: e.target.value })}
+                    onChange={e => { update({ title: e.target.value }); form.clearError('title'); }}
                 />
+                {form.errors.title && <span className={localStyles.errorMsg}>{form.errors.title}</span>}
             </div>
 
-            {/* Subject */}
-            <div className={styles.field}>
-                <label className={styles.label}>Subject</label>
-                <div className={styles.chipGrid}>
-                    {SUBJECTS.map(s => (
-                        <button
-                            key={s.value}
-                            className={`${styles.chip} ${data.subject === s.value ? styles.chipActive : ''}`}
-                            onClick={() => update({ subject: s.value as WizardData['subject'] })}
-                        >
-                            {s.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <SubjectPicker
+                value={data.subject}
+                onChange={val => { update({ subject: val }); ai.reset(); }}
+            />
 
-            {/* Topic */}
             <div className={styles.field}>
                 <label className={styles.label}>Specific topic</label>
                 <input
-                    className={styles.input}
+                    className={`${styles.input} ${form.errors.topic ? localStyles.inputError : ''}`}
                     type="text"
                     placeholder="e.g. The planets and their moons"
                     value={data.topic}
-                    onChange={e => update({ topic: e.target.value })}
+                    onChange={e => { update({ topic: e.target.value }); form.clearError('topic'); ai.reset(); }}
                 />
+                {form.errors.topic && <span className={localStyles.errorMsg}>{form.errors.topic}</span>}
             </div>
 
-            {/* Age group */}
-            <div className={styles.field}>
-                <label className={styles.label}>Age group</label>
-                <div className={styles.chipGrid}>
-                    {AGE_GROUPS.map(a => (
-                        <button
-                            key={a}
-                            className={`${styles.chip} ${data.ageGroup === a ? styles.chipActive : ''}`}
-                            onClick={() => update({ ageGroup: a as WizardData['ageGroup'] })}
-                        >
-                            {a} yrs
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <AgeGroupPicker
+                value={data.ageGroup}
+                onChange={val => update({ ageGroup: val })}
+            />
+
+            <AiValidationBox
+                state={ai.state}
+                message={ai.message}
+                onFix={ai.reset}
+                onOverride={handleOverride}
+            />
 
             <div className={styles.actions}>
                 <span />
-                <button className={styles.btnPrimary} onClick={onNext} disabled={!canNext}>
-                    Next: Choose mechanic →
+                <button
+                    className={styles.btnPrimary}
+                    onClick={handleNext}
+                    disabled={!form.isComplete || ai.state === 'checking'}
+                >
+                    {ai.state === 'checking'
+                        ? <><span className={localStyles.spinner} /> Checking…</>
+                        : 'Next: Choose mechanic →'
+                    }
                 </button>
             </div>
         </div>

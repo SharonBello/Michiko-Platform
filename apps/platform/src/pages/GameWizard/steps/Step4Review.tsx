@@ -8,9 +8,10 @@ interface Props {
     onNext: () => void;
     onBack: () => void;
     onSubmit: () => void;
+    saving?: boolean;
 }
 
-export function Step4Review({ data, onBack, onSubmit }: Props) {
+export function Step4Review({ data, onBack, onSubmit, saving }: Props) {
     const rows = [
         { label: 'Title', value: data.title || '(untitled)' },
         { label: 'Subject', value: data.subject },
@@ -51,9 +52,11 @@ export function Step4Review({ data, onBack, onSubmit }: Props) {
             </div>
 
             <div className={styles.actions}>
-                <button className={styles.btnSecondary} onClick={onBack}>← Back</button>
-                <button className={styles.btnPrimary} onClick={onSubmit}>
-                    ✦ Generate game blueprint
+                <button className={styles.btnSecondary} onClick={onBack} disabled={saving}>
+                    ← Back
+                </button>
+                <button className={styles.btnPrimary} onClick={onSubmit} disabled={saving}>
+                    {saving ? 'Saving…' : '✦ Generate game blueprint'}
                 </button>
             </div>
         </div>

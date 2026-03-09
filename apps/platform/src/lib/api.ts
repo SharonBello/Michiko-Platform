@@ -1,0 +1,58 @@
+import type { Game, Blueprint } from '@michiko/types';
+import { auth } from './firebase';
+
+async function getHeaders(): Promise<Record<string, string>> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  return {
+    'Content-Type': 'application/json',
+    'x-user-id': user.uid,
+  };
+}
+
+export const api = {
+  async getGames(): Promise<Game[]> {
+    const res = await fetch('/api/games', { headers: await getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch games');
+    return res.json();
+  },
+
+  async getGame(id: string): Promise<Game> {
+    const res = await fetch(`/api/games/${id}`, { headers: await getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch game');
+    return res.json();
+  },
+
+async createGame(data: Omit<Game, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'> & { topic?: string }): Promise<Game> {    const res = await fetch('/api/games', {
+      method: 'POST',
+      headers: await getHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create game');
+    return res.json();
+  },
+
+  async getBlueprint(id: string): Promise<Blueprint> {
+    const res = await fetch(`/api/blueprints/${id}`, { headers: await getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch blueprint');
+    return res.json();
+  },
+
+  async saveBlueprint(blueprint: Omit<Blueprint, 'id'>): Promise<Blueprint> {
+    const res = await fetch('/api/blueprints', {
+      method: 'POST',
+      headers: await getHeaders(),
+      body: JSON.stringify(blueprint),
+    });
+    if (!res.ok) throw new Error('Failed to save blueprint');
+    return res.json();
+  },
+
+  async approveBlueprint(id: string): Promise<void> {
+    const res = await fetch(`/api/blueprints/${id}/approve`, {
+      method: 'POST',
+      headers: await getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to approve blueprint');
+  },
+};

@@ -115,3 +115,37 @@
         grid-template-columns: 1fr;
     }
 }
+
+.loadingRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    padding: var(--space-8);
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--color-border-strong);
+    border-top-color: var(--color-brand);
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.error {
+    padding: var(--space-4);
+    background: rgba(230, 57, 70, 0.08);
+    border: 1px solid rgba(230, 57, 70, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--color-accent);
+    font-size: var(--text-sm);
+}
