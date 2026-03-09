@@ -1,0 +1,52 @@
+// ─── Michiko VR — Design Tokens ──────────────────────────────────────────────
+// Poster Neon palette — dark only, no mode switcher
+//   brand  #00C8E0  cyan
+//   accent #E63946  red
+//   hi     #7B35D4  vivid purple
+:root {
+  --color-brand:         #00C8E0;
+  --color-brand-glow:    #00C8E044;
+  --color-accent:        #E63946;
+  --color-accent-glow:   #E6394644;
+  --color-hi:            #7B35D4;
+  --color-hi-glow:       #7B35D444;
+  --color-bg:            #080808;
+  --color-surface:       #101010;
+  --color-elevated:      #181818;
+  --color-overlay:       #202020;
+  --color-text:          #FFFFFF;
+  --color-text-sec:      #888888;
+  --color-text-muted:    #555555;
+  --color-success:       #22C55E;
+  --color-warning:       #F59E0B;
+  --color-danger:        #E63946;
+  --color-info:          #00C8E0;
+  --color-border:        rgba(255,255,255,0.07);
+  --color-border-strong: rgba(255,255,255,0.14);
+  --font-family:         'Space Grotesk', system-ui, sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-medium:  500;
+  --font-weight-bold:    700;
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.25rem;
+  --text-2xl:  1.5rem;
+  --text-3xl:  1.875rem;
+  --text-4xl:  2.25rem;
+  --space-1:  0.25rem;  --space-2:  0.5rem;   --space-3:  0.75rem;
+  --space-4:  1rem;     --space-5:  1.25rem;  --space-6:  1.5rem;
+  --space-8:  2rem;     --space-10: 2.5rem;   --space-12: 3rem;
+  --space-16: 4rem;
+  --radius-sm:   4px;   --radius-md:  8px;
+  --radius-lg:   12px;  --radius-xl:  16px;   --radius-full: 9999px;
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.5);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.6);
+  --glow-brand:  0 0 16px var(--color-brand-glow);
+  --glow-accent: 0 0 16px var(--color-accent-glow);
+  --glow-hi:     0 0 16px var(--color-hi-glow);
+  --duration-fast: 100ms;  --duration-base: 200ms;  --duration-slow: 350ms;
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --z-base:0; --z-raised:10; --z-dropdown:100; --z-modal:200; --z-toast:300;
+}
