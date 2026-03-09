@@ -12,6 +12,9 @@ export default function GameDetail() {
     const [results, setResults] = useState<GameResult[]>([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [duplicating, setDuplicating] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -39,6 +42,34 @@ export default function GameDetail() {
         navigator.clipboard.writeText(url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    }
+
+    function handleDelete() {
+        setConfirmDelete(true);
+    }
+
+    async function confirmDeleteAction() {
+        if (!id) return;
+        setDeleting(true);
+        try {
+            await api.deleteGame(id);
+            navigate('/');
+        } catch {
+            setDeleting(false);
+        } finally {
+            setConfirmDelete(false);
+        }
+    }
+
+    async function handleDuplicate() {
+        if (!id) return;
+        setDuplicating(true);
+        try {
+            const newGame = await api.duplicateGame(id);
+            navigate(`/games/${newGame.id}`);
+        } catch {
+            setDuplicating(false);
+        }
     }
 
     if (loading) return <div className={styles.loading}><span className={styles.spinner} /></div>;
@@ -84,11 +115,24 @@ export default function GameDetail() {
                 <div className={styles.titleRow}>
                     <h1 className={styles.title}>{game.title}</h1>
                     <span className={styles.status}>{game.status}</span>
-                    <button
-                        className={styles.editBtn}
-                        onClick={() => navigate(`/games/${id}/edit`)}
-                    >
+                </div>
+                <div className={styles.actions}>
+                    <button className={styles.editBtn} onClick={() => navigate(`/games/${id}/edit`)}>
                         ✎ Edit blueprint
+                    </button>
+                    <button
+                        className={styles.duplicateBtn}
+                        onClick={handleDuplicate}
+                        disabled={duplicating}
+                    >
+                        {duplicating ? 'Duplicating…' : '⧉ Duplicate'}
+                    </button>
+                    <button
+                        className={styles.deleteBtn}
+                        onClick={handleDelete}
+                        disabled={deleting}
+                    >
+                        {deleting ? 'Deleting…' : '✕ Delete'}
                     </button>
                 </div>
 
@@ -125,6 +169,24 @@ export default function GameDetail() {
                     </table>
                 )}
             </div>
+            {confirmDelete && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modal}>
+                        <h3 className={styles.modalTitle}>Delete game?</h3>
+                        <p className={styles.modalText}>
+                            "<strong>{game?.title}</strong>" and all its player results will be permanently deleted.
+                        </p>
+                        <div className={styles.modalActions}>
+                            <button className={styles.modalCancel} onClick={() => setConfirmDelete(false)}>
+                                Cancel
+                            </button>
+                            <button className={styles.modalDelete} onClick={confirmDeleteAction} disabled={deleting}>
+                                {deleting ? 'Deleting…' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

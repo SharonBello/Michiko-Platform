@@ -107,4 +107,22 @@ export const api = {
     if (!res.ok) throw new Error('Blueprint not found');
     return res.json();
   },
+
+  async deleteGame(id: string): Promise<void> {
+    const res = await fetch(`/api/games/${id}`, {
+      method: 'DELETE',
+      headers: await getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete game');
+  },
+
+  async duplicateGame(id: string): Promise<Game> {
+    const res = await fetch(`/api/games/${id}/duplicate`, {
+      method: 'POST',
+      headers: await getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to duplicate game');
+    return res.json();
+  },
+  
 };

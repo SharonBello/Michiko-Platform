@@ -1,70 +1,98 @@
-import type { Game, GameStatus } from '@michiko/types';
+import { useState, useRef, useEffect } from 'react';
+import type { Game } from '@michiko/types';
 import styles from './GameCard.module.scss';
 
-const STATUS_LABEL: Record<GameStatus, string> = {
-    draft: 'Draft',
+interface Props {
+    game: Game;
+    onClick: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    onDuplicate: () => void;
+    onShare: () => void;
+}
+
+const THEME_COLORS: Record<string, string> = {
+    EduVerse: 'var(--color-brand)',
+    ChronoWorld: 'var(--color-accent)',
+    NexusAcademy: 'var(--color-hi)',
+};
+
+const STATUS_LABELS: Record<string, string> = {
     building: 'Building',
     ready: 'Ready',
     live: 'Live',
     archived: 'Archived',
+    draft: 'Draft',
 };
 
-const STATUS_CLASS: Record<GameStatus, string> = {
-    draft: 'statusDraft',
-    building: 'statusBuilding',
-    ready: 'statusReady',
-    live: 'statusLive',
-    archived: 'statusArchived',
-};
+export function GameCard({ game, onClick, onEdit, onDelete, onDuplicate, onShare }: Props) {
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
 
-const THEME_COLORS: Record<string, string> = {
-    EduVerse: 'var(--color-brand)',
-    ChronoWorld: 'var(--color-hi)',
-    NexusAcademy: 'var(--color-accent)',
-};
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
-interface GameCardProps {
-    game: Game;
-    onClick: () => void;
-}
+    function action(fn: () => void) {
+        return (e: React.MouseEvent) => {
+            e.stopPropagation();
+            setMenuOpen(false);
+            fn();
+        };
+    }
 
-export function GameCard({ game, onClick }: GameCardProps) {
     const themeColor = THEME_COLORS[game.theme] ?? 'var(--color-brand)';
-    const updated = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-        .format(new Date(game.updatedAt));
 
     return (
-        <div className={styles.card} onClick={onClick} role="button" tabIndex={0}
-            onKeyDown={e => e.key === 'Enter' && onClick()}
-            style={{ '--theme-color': themeColor } as React.CSSProperties}
-        >
-            {/* Top bar accent */}
-            <div className={styles.accent} />
+        <div className={styles.card} onClick={onClick} style={{ '--theme': themeColor } as React.CSSProperties}>
+            <div className={styles.topBar} />
 
-            {/* Header */}
-            <div className={styles.header}>
-                <span className={`${styles.status} ${styles[STATUS_CLASS[game.status]]}`}>
-                    {game.status === 'live' && <span className={styles.dot} />}
-                    {STATUS_LABEL[game.status]}
-                </span>
-                <span className={styles.theme}>{game.theme}</span>
-            </div>
+            <div className={styles.body}>
+                <div className={styles.titleRow}>
+                    <h3 className={styles.title}>{game.title}</h3>
+                    <div className={styles.menuWrap} ref={menuRef}>
+                        <button
+                            className={styles.dotsBtn}
+                            onClick={e => { e.stopPropagation(); setMenuOpen(o => !o); }}
+                            aria-label="Game actions"
+                        >
+                            ⋯
+                        </button>
 
-            {/* Title */}
-            <h3 className={styles.title}>{game.title}</h3>
-            <p className={styles.description}>{game.description}</p>
+                        {menuOpen && (
+                            <div className={styles.menu}>
+                                <button className={styles.menuItem} onClick={action(onShare)}>
+                                    <span className={styles.menuIcon}>🔗</span> Share link
+                                </button>
+                                <button className={styles.menuItem} onClick={action(onEdit)}>
+                                    <span className={styles.menuIcon}>✎</span> Edit blueprint
+                                </button>
+                                <button className={styles.menuItem} onClick={action(onDuplicate)}>
+                                    <span className={styles.menuIcon}>⧉</span> Duplicate
+                                </button>
+                                <div className={styles.menuDivider} />
+                                <button className={`${styles.menuItem} ${styles.menuItemDanger}`} onClick={action(onDelete)}>
+                                    <span className={styles.menuIcon}>✕</span> Delete
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-            {/* Meta */}
-            <div className={styles.meta}>
-                <span className={styles.tag}>{game.subject}</span>
-                <span className={styles.tag}>{game.ageGroup} yrs</span>
-                <span className={styles.tag}>{game.mechanic}</span>
-            </div>
+                <p className={styles.desc}>{game.description}</p>
 
-            {/* Footer */}
-            <div className={styles.footer}>
-                <span className={styles.updated}>Updated {updated}</span>
-                <span className={styles.arrow}>→</span>
+                <div className={styles.footer}>
+                    <span className={styles.theme}>{game.theme}</span>
+                    <span className={`${styles.status} ${styles[`status_${game.status}`]}`}>
+                        {STATUS_LABELS[game.status] ?? game.status}
+                    </span>
+                </div>
             </div>
         </div>
     );
