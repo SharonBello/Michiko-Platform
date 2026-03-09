@@ -7,6 +7,7 @@ import NotFoundPage from '../pages/NotFound/NotFound';
 import GameWizard from '../pages/GameWizard/GameWizard';
 import BlueprintGenerating from '../pages/Blueprint/BlueprintGenerating';
 import BlueprintReview from '../pages/Blueprint/BlueprintReview';
+import GamePage from './../pages/Game/GamePage';
 
 export const router = createBrowserRouter([
     {
@@ -34,6 +35,14 @@ export const router = createBrowserRouter([
         element: (
             <ProtectedRoute>
                 <BlueprintReview />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/game/:id',
+        element: (
+            <ProtectedRoute>
+                <GamePage />
             </ProtectedRoute>
         ),
     },

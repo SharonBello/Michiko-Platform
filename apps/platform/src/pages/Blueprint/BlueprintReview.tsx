@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { Blueprint, GameScene } from '@michiko/types';
 import styles from './BlueprintReview.module.scss';
+import { api } from './../../lib/api';
 
 export default function BlueprintReview() {
     const navigate = useNavigate();
@@ -16,10 +17,10 @@ export default function BlueprintReview() {
         return null;
     }
 
-    function handleApprove() {
-        setApproved(true);
-        // Phase 4 — will POST to /api/blueprints/:id/approve
-        setTimeout(() => navigate('/'), 1800);
+    async function handleApprove() {
+        if (!blueprint?.id) return;
+        await api.approveBlueprint(blueprint.id);
+        navigate(`/game/${blueprint.id}`);
     }
 
     const scene: GameScene = blueprint.scenes[activeScene];

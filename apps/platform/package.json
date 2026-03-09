@@ -11,6 +11,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "firebase": "^10.7.0",
+    "@babylonjs/core": "^6.0.0",
+    "@babylonjs/loaders": "^6.0.0",
     "@michiko/types": "*"
   },
   "devDependencies": {

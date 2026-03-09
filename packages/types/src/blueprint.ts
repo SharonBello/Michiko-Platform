@@ -5,9 +5,8 @@ export interface Question {
   type: QuestionType;
   text: string;
   options?: string[];
-  correctAnswer: string;
-  points: number;
-  hints: string[];
+  answer: string;
+  explanation?: string;
 }
 
 export interface NPC {
