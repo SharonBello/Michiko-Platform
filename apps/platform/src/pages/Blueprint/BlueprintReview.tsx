@@ -19,8 +19,9 @@ export default function BlueprintReview() {
 
     async function handleApprove() {
         if (!blueprint?.id) return;
+        setApproved(true);
         await api.approveBlueprint(blueprint.id);
-        navigate(`/game/${blueprint.id}`);
+        navigate(`/games/${blueprint.gameId}`);
     }
 
     const scene: GameScene = blueprint.scenes[activeScene];
@@ -103,7 +104,7 @@ export default function BlueprintReview() {
                                         <div className={styles.qHeader}>
                                             <span className={styles.qNum}>Q{i + 1}</span>
                                             <span className={styles.qType}>{q.type}</span>
-                                            <span className={styles.qPoints}>{q.points}pts</span>
+                                            <span className={styles.qPoints}>1pt</span>
                                         </div>
                                         <div className={styles.qText}>{q.text}</div>
                                         {q.options && (
@@ -111,9 +112,9 @@ export default function BlueprintReview() {
                                                 {q.options.map((opt, oi) => (
                                                     <span
                                                         key={oi}
-                                                        className={`${styles.qOption} ${opt === q.correctAnswer ? styles.qCorrect : ''}`}
+                                                        className={`${styles.qOption} ${opt === q.answer ? styles.qCorrect : ''}`}
                                                     >
-                                                        {opt === q.correctAnswer && '✓ '}{opt}
+                                                        {opt === q.answer && '✓ '}{opt}
                                                     </span>
                                                 ))}
                                             </div>

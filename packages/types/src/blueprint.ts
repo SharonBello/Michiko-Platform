@@ -1,4 +1,4 @@
-export type QuestionType = 'multiple-choice' | 'true-false' | 'fill-blank' | 'match' | 'voice';
+export type QuestionType = 'multiple-choice' | 'true-false' | 'True-False' | 'fill-blank' | 'voice' | 'match';
 
 export interface Question {
   id: string;

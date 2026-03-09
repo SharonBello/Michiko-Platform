@@ -11,7 +11,7 @@ export function EmptyState({ onNew }: EmptyStateProps) {
             <h3 className={styles.title}>No games yet</h3>
             <p className={styles.sub}>
                 Create your first VR game and let AI do the heavy lifting.
-                Your students will be exploring immersive worlds in minutes.
+                Your players will be exploring immersive worlds in minutes.
             </p>
             <button className={styles.btn} onClick={onNew}>
                 + Create your first game

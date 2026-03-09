@@ -3,36 +3,36 @@ import Anthropic from '@anthropic-ai/sdk';
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export interface WizardInput {
-    title: string;
-    subject: string;
-    topic: string;
-    ageGroup: string;
-    mechanic: string;
-    theme: string;
-    questionCount: number;
-    questionTypes: string[];
-    gameId: string;
+  title: string;
+  subject: string;
+  topic: string;
+  ageGroup: string;
+  mechanic: string;
+  theme: string;
+  questionCount: number;
+  questionTypes: string[];
+  gameId: string;
 }
 
 export async function generateBlueprint(input: WizardInput) {
-    const prompt = buildPrompt(input);
+  const prompt = buildPrompt(input);
 
-    const message = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
-        system: `You are a VR educational game designer. 
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 4000,
+    system: `You are a VR educational game designer. 
 Generate structured game blueprints as valid JSON only. 
 No explanation, no markdown, no backticks. Pure JSON only.`,
-        messages: [{ role: 'user', content: prompt }],
-    });
+    messages: [{ role: 'user', content: prompt }],
+  });
 
-    const text = (message.content[0] as { text: string }).text;
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+  const text = (message.content[0] as { text: string }).text;
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
 }
 
 function buildPrompt(input: WizardInput): string {
-    return `Generate a VR educational game blueprint for:
+  return `Generate a VR educational game blueprint for:
 - Title: "${input.title}"
 - Subject: ${input.subject}
 - Topic: ${input.topic}
@@ -80,5 +80,7 @@ Rules:
 - Each scene must have 1-2 NPCs
 - Make questions age-appropriate for ${input.ageGroup} year olds
 - Questions must be specifically about "${input.topic}"
-- Make the NPC names and scene names fit the "${input.theme}" theme`;
+- Make the NPC names and scene names fit the "${input.theme}" theme
+- For "match" type questions, options MUST use pipe format: ["Left term|Right definition", ...]
+- For "true-false" type questions, options should be ["True", "False"] and answer must be "True" or "False"`;
 }

@@ -1,4 +1,4 @@
-import type { Game, Blueprint } from '@michiko/types';
+import type { Game, Blueprint, GameResult } from '@michiko/types';
 import { auth } from './firebase';
 import type { WizardData } from './../pages/GameWizard/GameWizard';
 
@@ -65,6 +65,28 @@ export const api = {
       body: JSON.stringify(wizardData),
     });
     if (!res.ok) throw new Error('Failed to generate blueprint');
+    return res.json();
+  },
+
+  async getGameByCode(code: string): Promise<{ game: Game; blueprint: Blueprint }> {
+    const res = await fetch(`/api/share/${code}`);
+    if (!res.ok) throw new Error('Game not found');
+    return res.json();
+  },
+
+  async getResults(gameId: string): Promise<GameResult[]> {
+    const res = await fetch(`/api/results/${gameId}`, { headers: await getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch results');
+    return res.json();
+  },
+
+  async saveResult(result: Omit<GameResult, 'id' | 'playedAt'>): Promise<GameResult> {
+    const res = await fetch('/api/results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(result),
+    });
+    if (!res.ok) throw new Error('Failed to save result');
     return res.json();
   },
 };

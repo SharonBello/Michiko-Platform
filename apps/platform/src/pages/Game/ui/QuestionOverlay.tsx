@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Question } from '@michiko/types';
 import styles from './QuestionOverlay.module.scss';
+import { MatchingQuestion } from './MatchingQuestion';
 
 interface Props {
     question: Question;
@@ -10,17 +11,16 @@ interface Props {
 }
 
 export function QuestionOverlay({ question, index, total, onAnswer }: Props) {
-    const [selected, setSelected] = useState<string | null>(null);
-    const [revealed, setRevealed] = useState(false);
+    const [selection, setSelection] = useState<{ answer: string } | null>(null);
 
     function handleSelect(opt: string) {
-        if (revealed) return;
-        setSelected(opt);
-        setRevealed(true);
+        if (selection) return;
+        setSelection({ answer: opt });
         setTimeout(() => onAnswer(opt), 1200);
     }
 
     const isTrueFalse = question.type === 'true-false' || question.type === 'True-False';
+    const isMatch = question.type === 'match';
     const options = isTrueFalse ? ['True', 'False'] : (question.options ?? []);
 
     return (
@@ -33,28 +33,37 @@ export function QuestionOverlay({ question, index, total, onAnswer }: Props) {
 
                 <h3 className={styles.question}>{question.text}</h3>
 
-                <div className={styles.options}>
-                    {options.map(opt => {
-                        const isSelected = selected === opt;
-                        const isCorrect = revealed && opt === question.answer;
-                        const isWrong = revealed && isSelected && opt !== question.answer;
+                {isMatch ? (
+                    <MatchingQuestion
+                        pairs={question.options ?? []}
+                        onAnswer={(correct: any) => {
+                            setSelection({ answer: correct ? question.answer : '' });
+                            setTimeout(() => onAnswer(correct ? question.answer : ''), 1200);
+                        }}
+                    />
+                ) : (
+                    <div className={styles.options}>
+                        {options.map(opt => {
+                            const isSelected = selection?.answer === opt;
+                            const isCorrect = !!selection && opt === question.answer;
+                            const isWrong = !!selection && isSelected && opt !== question.answer;
 
-                        return (
-                            <button
-                                key={opt}
-                                className={`${styles.option} ${isCorrect ? styles.correct : ''} ${isWrong ? styles.wrong : ''} ${isSelected && !revealed ? styles.selected : ''}`}
-                                onClick={() => handleSelect(opt)}
-                                disabled={revealed}
-                            >
-                                {opt}
-                            </button>
-                        );
-                    })}
-                </div>
+                            return (
+                                <button
+                                    key={opt}
+                                    className={`${styles.option} ${isCorrect ? styles.correct : ''} ${isWrong ? styles.wrong : ''}`} onClick={() => handleSelect(opt)}
+                                    disabled={!!selection}
+                                >
+                                    {opt}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
-                {revealed && (
-                    <div className={`${styles.explanation} ${selected === question.answer ? styles.explanationCorrect : styles.explanationWrong}`}>
-                        {selected === question.answer ? '✓ Correct! ' : '✗ Incorrect. '}
+                {selection && (
+                    <div className={`${styles.explanation} ${selection.answer === question.answer ? styles.explanationCorrect : styles.explanationWrong}`}>
+                        {selection.answer === question.answer ? '✓ Correct! ' : '✗ Incorrect. '}
                         {question.explanation}
                     </div>
                 )}

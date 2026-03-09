@@ -13,7 +13,7 @@ const QUESTION_TYPES = [
     { value: 'true-false', label: 'True / False', desc: 'Binary correct/incorrect judgement.' },
     { value: 'fill-blank', label: 'Fill in the blank', desc: 'Type the missing word or number.' },
     { value: 'match', label: 'Matching', desc: 'Connect pairs of related items.' },
-    { value: 'voice', label: 'Voice answer', desc: 'Student speaks the answer aloud (VR mic).' },
+    { value: 'voice', label: 'Voice answer', desc: 'player speaks the answer aloud (VR mic).' },
 ];
 
 const COUNTS = [5, 10, 15, 20, 25];

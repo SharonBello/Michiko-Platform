@@ -11,11 +11,11 @@ import styles from './Dashboard.module.scss';
 const PLAN_LIMIT = 10;
 
 export default function DashboardPage() {
-  const { user }    = useAuth();
-  const navigate    = useNavigate();
-  const [games, setGames]     = useState<Game[]>([]);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api.getGames()
@@ -24,7 +24,7 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const liveCount     = games.filter(g => g.status === 'live').length;
+  const liveCount = games.filter(g => g.status === 'live').length;
   const buildingCount = games.filter(g => g.status === 'building').length;
 
   return (
@@ -41,10 +41,10 @@ export default function DashboardPage() {
 
       <div className={styles.stats}>
         {[
-          { label: 'Total Games',      value: games.length,  color: 'var(--color-brand)'   },
-          { label: 'Live',             value: liveCount,     color: 'var(--color-accent)'  },
-          { label: 'Building',         value: buildingCount, color: 'var(--color-hi)'      },
-          { label: 'Students Reached', value: 0,             color: 'var(--color-success)' },
+          { label: 'Total Games', value: games.length, color: 'var(--color-brand)' },
+          { label: 'Live', value: liveCount, color: 'var(--color-accent)' },
+          { label: 'Building', value: buildingCount, color: 'var(--color-hi)' },
+          { label: 'players Reached', value: 0, color: 'var(--color-success)' },
         ].map(s => (
           <div key={s.label} className={styles.statCard} style={{ borderTopColor: s.color }}>
             <div className={styles.statValue} style={{ color: s.color }}>{s.value}</div>

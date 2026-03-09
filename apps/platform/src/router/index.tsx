@@ -7,62 +7,49 @@ import NotFoundPage from '../pages/NotFound/NotFound';
 import GameWizard from '../pages/GameWizard/GameWizard';
 import BlueprintGenerating from '../pages/Blueprint/BlueprintGenerating';
 import BlueprintReview from '../pages/Blueprint/BlueprintReview';
-import GamePage from './../pages/Game/GamePage';
+import GamePage from '../pages/Game/GamePage';
+import GameDetail from '../pages/GameDetail/GameDetail';
+import PlayEntry from '../pages/Play/PlayEntry';
+import PlayerGame from '../pages/Play/PlayerGame';
 
 export const router = createBrowserRouter([
-    {
-        path: '/sign-in',
-        element: <SignInPage />,
-    },
+    // Public routes
+    { path: '/sign-in', element: <SignInPage /> },
+    { path: '/play/:code', element: <PlayEntry /> },
+    { path: '/play/:code/game', element: <PlayerGame /> },
+
+    // Fullscreen protected routes (no AppShell)
     {
         path: '/games/new',
-        element: (
-            <ProtectedRoute>
-                <GameWizard />
-            </ProtectedRoute>
-        ),
+        element: <ProtectedRoute><GameWizard /></ProtectedRoute>,
     },
     {
-        path: '/blueprint/generating',
-        element: (
-            <ProtectedRoute>
-                <BlueprintGenerating />
-            </ProtectedRoute>
-        ),
-    },
-    {
-        path: '/blueprint/review',
-        element: (
-            <ProtectedRoute>
-                <BlueprintReview />
-            </ProtectedRoute>
-        ),
+        path: '/games/:id',
+        element: <ProtectedRoute><GameDetail /></ProtectedRoute>,
     },
     {
         path: '/game/:id',
-        element: (
-            <ProtectedRoute>
-                <GamePage />
-            </ProtectedRoute>
-        ),
+        element: <ProtectedRoute><GamePage /></ProtectedRoute>,
     },
     {
+        path: '/blueprint/generating',
+        element: <ProtectedRoute><BlueprintGenerating /></ProtectedRoute>,
+    },
+    {
+        path: '/blueprint/review',
+        element: <ProtectedRoute><BlueprintReview /></ProtectedRoute>,
+    },
+
+    // App shell (sidebar + topbar)
+    {
         path: '/',
-        element: (
-            <ProtectedRoute>
-                <AppShell />
-            </ProtectedRoute>
-        ),
+        element: <ProtectedRoute><AppShell /></ProtectedRoute>,
         children: [
             { index: true, element: <DashboardPage /> },
-            { path: 'games', element: <DashboardPage /> },
-            { path: 'games/new', element: <DashboardPage /> },
-            { path: 'games/:id', element: <DashboardPage /> },
             { path: 'settings', element: <DashboardPage /> },
         ],
     },
-    {
-        path: '*',
-        element: <NotFoundPage />,
-    },
+
+    // 404
+    { path: '*', element: <NotFoundPage /> },
 ]);

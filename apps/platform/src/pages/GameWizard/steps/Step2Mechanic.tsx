@@ -10,11 +10,11 @@ interface Props {
 }
 
 const MECHANICS = [
-    { value: 'quiz', label: 'Quiz', icon: '❓', desc: 'Students answer questions to progress through the world.' },
-    { value: 'exploration', label: 'Exploration', icon: '🗺', desc: 'Students discover answers by exploring the VR environment.' },
+    { value: 'quiz', label: 'Quiz', icon: '❓', desc: 'players answer questions to progress through the world.' },
+    { value: 'exploration', label: 'Exploration', icon: '🗺', desc: 'players discover answers by exploring the VR environment.' },
     { value: 'challenge', label: 'Challenge', icon: '⚡', desc: 'Time-pressured tasks and scoring to drive engagement.' },
-    { value: 'puzzle', label: 'Puzzle', icon: '🧩', desc: 'Students solve multi-step problems to unlock the next area.' },
-    { value: 'simulation', label: 'Simulation', icon: '🔭', desc: 'Students interact with a simulated system to learn by doing.' },
+    { value: 'puzzle', label: 'Puzzle', icon: '🧩', desc: 'players solve multi-step problems to unlock the next area.' },
+    { value: 'simulation', label: 'Simulation', icon: '🔭', desc: 'players interact with a simulated system to learn by doing.' },
 ];
 
 const THEMES = [
@@ -29,7 +29,7 @@ export function Step2Mechanic({ data, update, onNext, onBack }: Props) {
     return (
         <div className={styles.step}>
             <div className={styles.heading}>
-                <h2 className={styles.title}>How will students play?</h2>
+                <h2 className={styles.title}>How will players play?</h2>
                 <p className={styles.sub}>Choose a game mechanic and a visual theme.</p>
             </div>
 

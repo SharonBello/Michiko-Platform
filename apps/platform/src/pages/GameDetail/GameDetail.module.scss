@@ -1,0 +1,217 @@
+.page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--space-8) var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+.loading {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.spinner {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-brand);
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.back {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    color: var(--color-text-sec);
+    font-size: var(--text-sm);
+    font-family: var(--font-family);
+    cursor: pointer;
+    padding: 0;
+    transition: color var(--duration-base);
+
+    &:hover {
+        color: var(--color-text);
+    }
+}
+
+.titleRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.title {
+    font-size: 1.75rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    margin: 0;
+}
+
+.status {
+    padding: 2px var(--space-3);
+    background: rgba(0, 200, 100, 0.1);
+    border: 1px solid rgba(0, 200, 100, 0.25);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    color: #00c864;
+    text-transform: capitalize;
+}
+
+.desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-sec);
+    margin: 0;
+}
+
+.shareBox {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-5);
+    background: rgba(0, 200, 224, 0.05);
+    border: 1px solid rgba(0, 200, 224, 0.2);
+    border-radius: var(--radius-lg);
+}
+
+.shareLeft {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.shareLabel {
+    font-size: var(--text-xs);
+    color: var(--color-text-sec);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.shareCode {
+    font-size: 2rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-brand);
+    letter-spacing: 0.2em;
+}
+
+.shareUrl {
+    font-size: var(--text-xs);
+    color: var(--color-text-sec);
+}
+
+.copyBtn {
+    padding: var(--space-3) var(--space-5);
+    background: var(--color-brand);
+    color: #000;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: opacity var(--duration-base);
+
+    &:hover {
+        opacity: 0.85;
+    }
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.sectionTitle {
+    font-size: 1.1rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    margin: 0;
+}
+
+.avgBadge {
+    padding: 2px var(--space-3);
+    background: rgba(123, 53, 212, 0.12);
+    border: 1px solid rgba(123, 53, 212, 0.25);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    color: var(--color-hi);
+}
+
+.empty {
+    padding: var(--space-8);
+    text-align: center;
+    color: var(--color-text-sec);
+    font-size: var(--text-sm);
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+
+    th {
+        text-align: left;
+        padding: var(--space-3) var(--space-4);
+        color: var(--color-text-sec);
+        font-weight: var(--font-weight-medium);
+        border-bottom: 1px solid var(--color-border);
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    td {
+        padding: var(--space-3) var(--space-4);
+        color: var(--color-text);
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+    tr:hover td {
+        background: var(--color-elevated);
+    }
+}
+
+.pct {
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+.pctGood {
+    background: rgba(0, 200, 100, 0.1);
+    color: #00c864;
+}
+
+.pctLow {
+    background: rgba(230, 57, 70, 0.1);
+    color: var(--color-accent);
+}

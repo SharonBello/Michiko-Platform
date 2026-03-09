@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { blueprintsCol, gamesCol } from '../lib/collections';
 import { generateBlueprint } from '../services/blueprintService';
+import { generateShareCode } from '../lib/shareCode';
 
 const router = Router();
 
-// POST /api/blueprints/generate — generate blueprint with AI
 router.post('/generate', async (req, res) => {
     const ownerId = req.headers['x-user-id'] as string;
     if (!ownerId) return res.status(401).json({ error: 'Unauthorised' });
@@ -18,7 +18,6 @@ router.post('/generate', async (req, res) => {
     }
 });
 
-// POST /api/blueprints — save blueprint to Firestore
 router.post('/', async (req, res) => {
     const ownerId = req.headers['x-user-id'] as string;
     if (!ownerId) return res.status(401).json({ error: 'Unauthorised' });
@@ -38,7 +37,6 @@ router.post('/', async (req, res) => {
     }
 });
 
-// GET /api/blueprints/:id
 router.get('/:id', async (req, res) => {
     const ownerId = req.headers['x-user-id'] as string;
     if (!ownerId) return res.status(401).json({ error: 'Unauthorised' });
@@ -53,7 +51,6 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// POST /api/blueprints/:id/approve
 router.post('/:id/approve', async (req, res) => {
     const ownerId = req.headers['x-user-id'] as string;
     if (!ownerId) return res.status(401).json({ error: 'Unauthorised' });
@@ -67,8 +64,10 @@ router.post('/:id/approve', async (req, res) => {
         await ref.update({ status: 'approved', approvedAt: new Date().toISOString() });
 
         if (blueprint.gameId) {
+            const shareCode = generateShareCode();
             await gamesCol().doc(blueprint.gameId).update({
                 status: 'ready',
+                shareCode,
                 updatedAt: new Date().toISOString(),
             });
         }

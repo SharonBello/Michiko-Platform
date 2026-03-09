@@ -31,7 +31,7 @@ export function Step1Domain({ data, update, onNext }: Props) {
     return (
         <div className={styles.step}>
             <div className={styles.heading}>
-                <h2 className={styles.title}>What will students learn?</h2>
+                <h2 className={styles.title}>What will players learn?</h2>
                 <p className={styles.sub}>Define the subject, topic and age group for this game.</p>
             </div>
 

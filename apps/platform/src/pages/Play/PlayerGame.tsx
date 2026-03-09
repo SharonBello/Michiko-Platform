@@ -1,39 +1,35 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useRef, useState, useEffect } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useGameEngine } from '../Game/useGameEngine';
+import { initGameState, getCurrentScene, getCurrentQuestion, answerQuestion } from '../Game/engine/questionManager';
+import { QuestionOverlay } from '../Game/ui/QuestionOverlay';
+import { NPCDialogue } from '../Game/ui/NPCDialogue';
+import { ScoreHUD } from '../Game/ui/ScoreHUD';
 import { api } from '../../lib/api';
-import { useGameEngine } from './useGameEngine';
-import { initGameState, getCurrentScene, getCurrentQuestion, answerQuestion } from './engine/questionManager';
-import { QuestionOverlay } from './ui/QuestionOverlay';
-import { NPCDialogue } from './ui/NPCDialogue';
-import { ScoreHUD } from './ui/ScoreHUD';
-import type { Blueprint } from '@michiko/types';
-import type { GameState } from './engine/questionManager';
-import styles from './Game.module.scss';
+import type { Blueprint, Game } from '@michiko/types';
+import type { GameState } from '../Game/engine/questionManager';
+import styles from '../Game/Game.module.scss';
 
 type UIMode = 'explore' | 'dialogue' | 'question' | 'complete';
 
-export default function GamePage() {
-    const { id } = useParams<{ id: string }>();
+export default function PlayerGame() {
+    const { code } = useParams<{ code: string }>();
+    const location = useLocation();
     const navigate = useNavigate();
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    const [blueprint, setBlueprint] = useState<Blueprint | null>(null);
-    const [gameState, setGameState] = useState<GameState | null>(null);
+    const { playerName, game, blueprint } = location.state as {
+        playerName: string;
+        game: Game;
+        blueprint: Blueprint;
+    };
+
+    const [gameState, setGameState] = useState<GameState>(() => initGameState(blueprint));
     const [uiMode, setUiMode] = useState<UIMode>('explore');
     const [activeNpcId, setActiveNpcId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [startTime] = useState(() => Date.now());
+    const [scoreSaved, setScoreSaved] = useState(false);
     const [transitioning, setTransitioning] = useState(false);
-
-    useEffect(() => {
-        if (!id) return;
-        api.getBlueprint(id)
-            .then(bp => {
-                setBlueprint(bp);
-                setGameState(initGameState(bp));
-            })
-            .catch(() => navigate('/'))
-            .finally(() => setLoading(false));
-    }, [id]);
 
     function handleNPCClick(npcId: string) {
         if (uiMode !== 'explore') return;
@@ -41,12 +37,7 @@ export default function GamePage() {
         setUiMode('dialogue');
     }
 
-    function handleDialogueDismiss() {
-        setUiMode('question');
-    }
-
     function handleAnswer(answer: string) {
-        if (!blueprint || !gameState) return;
         setTransitioning(true);
         const next = answerQuestion(blueprint, gameState, answer);
         setGameState(next);
@@ -61,35 +52,49 @@ export default function GamePage() {
         }, 600);
     }
 
+    // Save score when complete
+    useEffect(() => {
+        if (uiMode !== 'complete' || scoreSaved) return;
+        setScoreSaved(true);
+
+        const timeSecs = Math.round((Date.now() - startTime) / 1000);
+        api.saveResult({
+            gameId: game.id,
+            blueprintId: blueprint.id,
+            playerName,
+            score: gameState.score,
+            total: gameState.totalQuestions,
+            timeSecs,
+        }).catch(err => console.error('Failed to save result:', err));
+    }, [uiMode]);
+
     useGameEngine(canvasRef, blueprint, handleNPCClick);
 
-    if (loading) return (
-        <div className={styles.loading}>
-            <span className={styles.spinner} /> Loading game…
-        </div>
-    );
-
-    const scene = blueprint && gameState ? getCurrentScene(blueprint, gameState) : null;
-    const question = blueprint && gameState ? getCurrentQuestion(blueprint, gameState) : null;
+    const scene = getCurrentScene(blueprint, gameState);
+    const question = getCurrentQuestion(blueprint, gameState);
     const activeNpc = scene?.npcs?.find(n => n.id === activeNpcId) ?? scene?.npcs?.[0] ?? null;
 
     return (
         <div className={styles.page}>
             <canvas ref={canvasRef} className={styles.canvas} />
 
-            {gameState && scene && (
+            {scene && (
                 <ScoreHUD state={gameState} sceneName={scene.name} />
             )}
+
+            <div className={styles.playerTag}>
+                Playing as <strong>{playerName}</strong>
+            </div>
 
             {uiMode === 'dialogue' && activeNpc && (
                 <NPCDialogue
                     npcName={activeNpc.name}
                     dialogue={activeNpc.dialogue}
-                    onDismiss={handleDialogueDismiss}
+                    onDismiss={() => setUiMode('question')}
                 />
             )}
 
-            {uiMode === 'question' && question && gameState && !transitioning &&(
+            {uiMode === 'question' && question && !transitioning && (
                 <QuestionOverlay
                     question={question}
                     index={gameState.answered.size}
@@ -98,22 +103,20 @@ export default function GamePage() {
                 />
             )}
 
-            {uiMode === 'complete' && gameState && (
+            {uiMode === 'complete' && (
                 <div className={styles.complete}>
                     <div className={styles.completeCard}>
                         <div className={styles.completeIcon}>🎓</div>
-                        <h2 className={styles.completeTitle}>Game Complete!</h2>
+                        <h2 className={styles.completeTitle}>Well done, {playerName}!</h2>
                         <p className={styles.completeScore}>
                             You scored <strong>{gameState.score}</strong> out of <strong>{gameState.totalQuestions}</strong>
                         </p>
-                        <button className={styles.completeBtn} onClick={() => navigate('/')}>
-                            Back to dashboard
+                        <button className={styles.completeBtn} onClick={() => navigate(`/play/${code}`)}>
+                            Play again
                         </button>
                     </div>
                 </div>
             )}
-
-            <button className={styles.exitBtn} onClick={() => navigate('/')}>✕ Exit</button>
         </div>
     );
 }
