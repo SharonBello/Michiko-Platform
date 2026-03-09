@@ -336,3 +336,26 @@
     text-align: center;
     padding: var(--space-16);
 }
+
+.saveBtn {
+    height: 36px;
+    padding: 0 var(--space-5);
+    background: transparent;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-text-sec);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: all var(--duration-base);
+
+    &:hover:not(:disabled) {
+        border-color: var(--color-brand);
+        color: var(--color-brand);
+    }
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}

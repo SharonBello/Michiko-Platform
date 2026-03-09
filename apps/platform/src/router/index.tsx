@@ -11,6 +11,7 @@ import GamePage from '../pages/Game/GamePage';
 import GameDetail from '../pages/GameDetail/GameDetail';
 import PlayEntry from '../pages/Play/PlayEntry';
 import PlayerGame from '../pages/Play/PlayerGame';
+import BlueprintEdit from './../pages/Blueprint/BlueprintEdit';
 
 export const router = createBrowserRouter([
     // Public routes
@@ -38,6 +39,10 @@ export const router = createBrowserRouter([
     {
         path: '/blueprint/review',
         element: <ProtectedRoute><BlueprintReview /></ProtectedRoute>,
+    },
+    {
+        path: '/games/:id/edit',
+        element: <ProtectedRoute><BlueprintEdit /></ProtectedRoute>,
     },
 
     // App shell (sidebar + topbar)

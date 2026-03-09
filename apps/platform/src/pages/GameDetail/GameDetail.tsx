@@ -81,6 +81,16 @@ export default function GameDetail() {
                         <div className={styles.avgBadge}>Avg {avg}%</div>
                     )}
                 </div>
+                <div className={styles.titleRow}>
+                    <h1 className={styles.title}>{game.title}</h1>
+                    <span className={styles.status}>{game.status}</span>
+                    <button
+                        className={styles.editBtn}
+                        onClick={() => navigate(`/games/${id}/edit`)}
+                    >
+                        ✎ Edit blueprint
+                    </button>
+                </div>
 
                 {results.length === 0 ? (
                     <div className={styles.empty}>

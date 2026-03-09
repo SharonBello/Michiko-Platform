@@ -89,4 +89,22 @@ export const api = {
     if (!res.ok) throw new Error('Failed to save result');
     return res.json();
   },
+
+  async updateBlueprint(id: string, blueprint: Partial<Blueprint>): Promise<Blueprint> {
+    const res = await fetch(`/api/blueprints/${id}`, {
+      method: 'PUT',
+      headers: await getHeaders(),
+      body: JSON.stringify(blueprint),
+    });
+    if (!res.ok) throw new Error('Failed to update blueprint');
+    return res.json();
+  },
+
+  async getBlueprintByGameId(gameId: string): Promise<Blueprint> {
+    const res = await fetch(`/api/blueprints/by-game/${gameId}`, {
+      headers: await getHeaders(),
+    });
+    if (!res.ok) throw new Error('Blueprint not found');
+    return res.json();
+  },
 };

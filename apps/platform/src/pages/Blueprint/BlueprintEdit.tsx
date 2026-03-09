@@ -1,34 +1,41 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import type { Blueprint, GameScene } from '@michiko/types';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { api } from '../../lib/api';
+import type { Blueprint } from '@michiko/types';
 import { useEditBlueprint } from './edit/useEditBlueprint';
 import { EditQuestionCard } from './edit/EditQuestionCard';
 import { EditNPCCard } from './edit/EditNPCCard';
-import { api } from './../../lib/api';
 import styles from './BlueprintReview.module.scss';
 
-export default function BlueprintReview() {
+export default function BlueprintEdit() {
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const location = useLocation();
-    const initial = (location.state as { blueprint: Blueprint } | null)?.blueprint;
-
+    const [blueprint, setBlueprint] = useState<Blueprint | null>(null);
     const [activeScene, setActiveScene] = useState(0);
-    const [approved, setApproved] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-    if (!initial) { navigate('/'); return null; }
+    useEffect(() => {
+        if (!id) return;
+        // Find approved blueprint for this game
+        api.getBlueprintByGameId(id)
+            .then(setBlueprint)
+            .catch(() => navigate(`/games/${id}`))
+            .finally(() => setLoading(false));
+    }, [id]);
 
+    if (loading) return <div className={styles.loading}><span className={styles.spinner} /></div>;
+    if (!blueprint) return null;
+
+    return <BlueprintEditInner blueprint={blueprint} gameId={id!} />;
+}
+
+function BlueprintEditInner({ blueprint: initial, gameId }: { blueprint: Blueprint; gameId: string }) {
+    const navigate = useNavigate();
+    const [activeScene, setActiveScene] = useState(0);
     const { blueprint, updateQuestion, updateNPC, deleteQuestion, save, saving, saved } =
         useEditBlueprint(initial);
 
-    async function handleApprove() {
-        if (!blueprint?.id) return;
-        setApproved(true);
-        await save();
-        await api.approveBlueprint(blueprint.id);
-        navigate(`/games/${blueprint.gameId}`);
-    }
-
-    const scene: GameScene = blueprint.scenes[activeScene];
+    const scene = blueprint.scenes[activeScene];
 
     return (
         <div className={styles.page}>
@@ -37,25 +44,15 @@ export default function BlueprintReview() {
                     <img src="/logo.png" alt="Michiko VR" className={styles.logo} />
                     <div>
                         <h1 className={styles.title}>{blueprint.title}</h1>
-                        <p className={styles.meta}>
-                            {blueprint.subject} · {blueprint.ageGroup} yrs · {blueprint.theme}
-                        </p>
+                        <p className={styles.meta}>{blueprint.theme}</p>
                     </div>
                 </div>
                 <div className={styles.headerRight}>
-                    <button
-                        className={styles.saveBtn}
-                        onClick={save}
-                        disabled={saving}
-                    >
-                        {saved ? '✓ Saved' : saving ? 'Saving…' : 'Save changes'}
+                    <button className={styles.saveBtn} onClick={() => navigate(`/games/${gameId}`)} disabled={saving}>
+                        ← Back
                     </button>
-                    <button
-                        className={`${styles.approveBtn} ${approved ? styles.approveDone : ''}`}
-                        onClick={handleApprove}
-                        disabled={approved}
-                    >
-                        {approved ? '✓ Approved — building…' : '✦ Approve & Build'}
+                    <button className={styles.approveBtn} onClick={async () => { await save(); navigate(`/games/${gameId}`); }} disabled={saving}>
+                        {saved ? '✓ Saved' : saving ? 'Saving…' : 'Save changes'}
                     </button>
                 </div>
             </div>
@@ -97,9 +94,7 @@ export default function BlueprintReview() {
 
                     {scene.questions.length > 0 && (
                         <div className={styles.section}>
-                            <div className={styles.sectionTitle}>
-                                Questions ({scene.questions.length})
-                            </div>
+                            <div className={styles.sectionTitle}>Questions ({scene.questions.length})</div>
                             <div className={styles.qList}>
                                 {scene.questions.map((q, i) => (
                                     <EditQuestionCard
