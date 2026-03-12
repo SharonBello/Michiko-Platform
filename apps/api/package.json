@@ -2,7 +2,8 @@
   "name": "@michiko/api",
   "private": true,
   "scripts": {
-    "dev": "ts-node-dev --respawn src/index.ts"
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "seed:environments": "ts-node -e \"require('./src/scripts/seedEnvironments.ts')\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",

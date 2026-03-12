@@ -1,10 +1,12 @@
 import { useRef, useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import * as BABYLON from '@babylonjs/core';
 import { useGameEngine } from '../Game/useGameEngine';
 import { initGameState, getCurrentScene, getCurrentQuestion, answerQuestion } from '../Game/engine/questionManager';
 import { QuestionOverlay } from '../Game/ui/QuestionOverlay';
 import { NPCDialogue } from '../Game/ui/NPCDialogue';
 import { ScoreHUD } from '../Game/ui/ScoreHUD';
+import { burstCorrect, burstWrong } from '../Game/engine/particleEffects';
 import { api } from '../../lib/api';
 import type { Blueprint, Game } from '@michiko/types';
 import type { GameState } from '../Game/engine/questionManager';
@@ -35,40 +37,69 @@ export default function PlayerGame() {
         if (uiMode !== 'explore') return;
         setActiveNpcId(npcId);
         setUiMode('dialogue');
+        onDialogueOpen(npcId);
+    }
+
+    const {
+        sceneRef, cameraRef,
+        onDialogueOpen, onDialogueClose,
+        onQuestionOpen, onAnswerCorrect, onAnswerWrong,
+        onGameComplete,
+    } = useGameEngine(canvasRef, blueprint, handleNPCClick);
+
+    function handleDialogueDismiss() {
+        if (activeNpcId) onDialogueClose(activeNpcId);
+        setUiMode('question');
+        if (activeNpcId) onQuestionOpen(activeNpcId);
     }
 
     function handleAnswer(answer: string) {
-        setTransitioning(true);
+        const question = getCurrentQuestion(blueprint, gameState);
+        const correct = answer === question?.answer;
+
+        if (sceneRef.current && cameraRef.current) {
+            const pos = cameraRef.current.position.add(new BABYLON.Vector3(0, 0, 3));
+            correct
+                ? burstCorrect(sceneRef.current, pos, blueprint.theme)
+                : burstWrong(sceneRef.current, pos);
+        }
+
         const next = answerQuestion(blueprint, gameState, answer);
         setGameState(next);
+
+        const scene0 = getCurrentScene(blueprint, gameState);
+        const targetNpcId = activeNpcId ?? scene0?.npcs?.[0]?.id ?? null;
+        if (targetNpcId) {
+            correct
+                ? onAnswerCorrect(targetNpcId, next.score, next.totalQuestions)
+                : onAnswerWrong(targetNpcId);
+        }
+
         if (next.complete) {
+            onGameComplete(next.score, next.totalQuestions);
             setUiMode('complete');
             setTransitioning(false);
             return;
         }
-        setTimeout(() => {
-            setUiMode('explore');
-            setTransitioning(false);
-        }, 600);
+
+        setTransitioning(true);
+        setTimeout(() => { setUiMode('explore'); setTransitioning(false); }, 2000);
     }
 
     // Save score when complete
     useEffect(() => {
         if (uiMode !== 'complete' || scoreSaved) return;
         setScoreSaved(true);
-
         const timeSecs = Math.round((Date.now() - startTime) / 1000);
         api.saveResult({
             gameId: game.id,
-            blueprintId: blueprint.id,
+            blueprintId: blueprint.id ?? '',
             playerName,
             score: gameState.score,
             total: gameState.totalQuestions,
             timeSecs,
         }).catch(err => console.error('Failed to save result:', err));
     }, [uiMode]);
-
-    useGameEngine(canvasRef, blueprint, handleNPCClick);
 
     const scene = getCurrentScene(blueprint, gameState);
     const question = getCurrentQuestion(blueprint, gameState);
@@ -78,9 +109,7 @@ export default function PlayerGame() {
         <div className={styles.page}>
             <canvas ref={canvasRef} className={styles.canvas} />
 
-            {scene && (
-                <ScoreHUD state={gameState} sceneName={scene.name} />
-            )}
+            {scene && <ScoreHUD state={gameState} sceneName={scene.name} />}
 
             <div className={styles.playerTag}>
                 Playing as <strong>{playerName}</strong>
@@ -90,7 +119,7 @@ export default function PlayerGame() {
                 <NPCDialogue
                     npcName={activeNpc.name}
                     dialogue={activeNpc.dialogue}
-                    onDismiss={() => setUiMode('question')}
+                    onDismiss={handleDialogueDismiss}
                 />
             )}
 
