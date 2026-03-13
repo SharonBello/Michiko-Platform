@@ -67,5 +67,5 @@ coverage/
 .tmp/
 
 service-account.json
-public/npcs
+apps/platform/public/npcs
 .glb
