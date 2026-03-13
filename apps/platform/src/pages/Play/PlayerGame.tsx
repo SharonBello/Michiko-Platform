@@ -34,6 +34,14 @@ export default function PlayerGame() {
     const [transitioning, setTransitioning] = useState(false);
 
     function handleNPCClick(npcId: string) {
+        // npcPlacer fires npcId + '__leave' when player walks away
+        if (npcId.endsWith('__leave')) {
+            const realId = npcId.replace('__leave', '');
+            onDialogueClose(realId);
+            setUiMode('explore');
+            setActiveNpcId(null);
+            return;
+        }
         if (uiMode !== 'explore') return;
         setActiveNpcId(npcId);
         setUiMode('dialogue');
@@ -116,20 +124,32 @@ export default function PlayerGame() {
             </div>
 
             {uiMode === 'dialogue' && activeNpc && (
-                <NPCDialogue
-                    npcName={activeNpc.name}
-                    dialogue={activeNpc.dialogue}
-                    onDismiss={handleDialogueDismiss}
-                />
+                <>
+                    <div
+                        className={styles.backdrop}
+                        onClick={() => { if (activeNpcId) onDialogueClose(activeNpcId); setUiMode('explore'); setActiveNpcId(null); }}
+                    />
+                    <NPCDialogue
+                        npcName={activeNpc.name}
+                        dialogue={activeNpc.dialogue}
+                        onDismiss={handleDialogueDismiss}
+                    />
+                </>
             )}
 
             {uiMode === 'question' && question && !transitioning && (
-                <QuestionOverlay
-                    question={question}
-                    index={gameState.answered.size}
-                    total={gameState.totalQuestions}
-                    onAnswer={handleAnswer}
-                />
+                <>
+                    <div
+                        className={styles.backdrop}
+                        onClick={() => { setUiMode('explore'); setActiveNpcId(null); }}
+                    />
+                    <QuestionOverlay
+                        question={question}
+                        index={gameState.answered.size}
+                        total={gameState.totalQuestions}
+                        onAnswer={handleAnswer}
+                    />
+                </>
             )}
 
             {uiMode === 'complete' && (

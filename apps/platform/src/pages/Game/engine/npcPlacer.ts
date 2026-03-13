@@ -2,7 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF';
 import type { NPC, SceneLayout } from '@michiko/types';
-import { selectCharacter, type CharacterDef } from './characterManifest';
+import { pickCharacter, type CharacterDef } from './characterManifest';
 
 const POSITIONS = [
     new BABYLON.Vector3(-5, 0, 5),
@@ -13,18 +13,25 @@ const POSITIONS = [
     new BABYLON.Vector3(0, 0, -5),
 ];
 
+// Proximity distances (metres)
+const DIST_WAVE = 5.0;   // NPC waves as player approaches
+const DIST_DIALOGUE = 4.0;   // Auto-open dialogue
+const DIALOGUE_COOLDOWN_MS = 8000; // Don't re-trigger for 8s after dismissal
+
 interface NPCInstance {
     npc: NPC;
     root: BABYLON.TransformNode;
-    animGroups: BABYLON.AnimationGroup[]; // original groups — shared skeleton drives clones
+    animGroups: BABYLON.AnimationGroup[];
     currentAnim: string;
-    isProximity: boolean;
+    proximityState: string;
+    lastDialogueTime: number;
     charDef: CharacterDef;
 }
 
 export interface AnimRule { anim: string; loop: boolean; }
 export interface NPCController {
     triggerEvent: (event: string, npcId: string, rule: AnimRule) => void;
+    setDialogueClosed: (npcId: string) => void;  // call when player dismisses dialogue
     dispose: () => void;
 }
 
@@ -32,7 +39,8 @@ export async function placeNPCs(
     scene: BABYLON.Scene,
     npcs: NPC[],
     layout: SceneLayout,
-    onNPCClick: (npc: NPC) => void
+    onNPCProximity: (npc: NPC) => void,   // fires when player walks up close
+    onNPCLeave?: (npc: NPC) => void    // fires when player walks away mid-dialogue
 ): Promise<NPCController> {
 
     const instances = new Map<string, NPCInstance>();
@@ -40,15 +48,13 @@ export async function placeNPCs(
     for (let i = 0; i < npcs.length; i++) {
         const npc = npcs[i]!;
         const pos = POSITIONS[i % POSITIONS.length]!;
-        const charDef = selectCharacter(layout.environment, '', npc.role);
+        const charDef = pickCharacter(layout.environment, npc.role);
 
         const result = await SceneLoader.ImportMeshAsync('', '/npcs/', charDef.file, scene);
 
-        // Hide source meshes — we'll show clones below
         result.animationGroups.forEach(ag => ag.stop());
         result.meshes.forEach(m => { m.isVisible = false; });
 
-        // Root transform node — position, rotation, scale go here
         const root = new BABYLON.TransformNode(`npc_root_${npc.id}`, scene);
         root.position = pos.clone();
         root.scaling = new BABYLON.Vector3(charDef.scale, charDef.scale, charDef.scale);
@@ -56,8 +62,6 @@ export async function placeNPCs(
         const faceY = Math.atan2(pos.x, pos.z) + Math.PI;
         root.rotation = new BABYLON.Vector3(rx, (ry ?? 0) + faceY, rz ?? 0);
 
-        // Clone meshes (skip __root__), parent to our root
-        // Clones share the original skeleton — original anim groups drive them automatically
         result.meshes.forEach(src => {
             if (src.name === '__root__') return;
             const clone = src.clone(`${src.name}_${npc.id}`, root);
@@ -70,19 +74,18 @@ export async function placeNPCs(
 
         const instance: NPCInstance = {
             npc, root,
-            animGroups: result.animationGroups, // originals — they drive the shared skeleton
+            animGroups: result.animationGroups,
             currentAnim: charDef.animations.idle,
-            isProximity: false,
+            proximityState: 'far',
+            lastDialogueTime: 0,
             charDef,
         };
         instances.set(npc.id, instance);
 
-        // Start idle immediately
         playAnim(instance, charDef.animations.idle, true);
-
         buildNameLabel(scene, npc.name, npc.role, root, charDef.scale);
 
-        // Invisible click hitbox
+        // Keep click as fallback (for desktop testing)
         const hitbox = BABYLON.MeshBuilder.CreateCylinder(`whb_${npc.id}`, {
             height: 1.8, diameter: 0.7, tessellation: 8
         }, scene);
@@ -92,22 +95,69 @@ export async function placeNPCs(
         hitbox.visibility = 0;
         hitbox.actionManager = new BABYLON.ActionManager(scene);
         hitbox.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
-            BABYLON.ActionManager.OnPickTrigger, () => onNPCClick(npc)
+            BABYLON.ActionManager.OnPickTrigger, () => {
+                const inst = instances.get(npc.id);
+                if (!inst || inst.proximityState === 'dialogue') return;
+                const camera = scene.activeCamera;
+                if (!camera) return;
+                const dist = BABYLON.Vector3.Distance(camera.position, inst.root.position);
+                if (dist > DIST_DIALOGUE * 2) return;
+                triggerDialogue(inst);
+            }
         ));
     }
 
-    // Proximity wave
+    function triggerDialogue(inst: NPCInstance) {
+        const now = Date.now();
+        if (now - inst.lastDialogueTime < DIALOGUE_COOLDOWN_MS) return;
+        inst.proximityState = 'dialogue';
+        playAnim(inst, inst.charDef.animations.talking, true);
+        onNPCProximity(inst.npc);
+    }
+
+    // ── Proximity loop ────────────────────────────────────────────
     scene.registerBeforeRender(() => {
         const camera = scene.activeCamera;
         if (!camera) return;
+        const now = Date.now();
+
         instances.forEach(inst => {
             const dist = BABYLON.Vector3.Distance(camera.position, inst.root.position);
-            if (dist < 4 && !inst.isProximity && inst.currentAnim === inst.charDef.animations.idle) {
-                inst.isProximity = true;
-                playAnim(inst, inst.charDef.animations.wave, false, () => {
+
+            if (inst.proximityState === 'dialogue') {
+                // Player walked away mid-dialogue → close it
+                if (dist > DIST_DIALOGUE * 2) {
+                    inst.proximityState = 'far';
+                    inst.lastDialogueTime = now;
                     playAnim(inst, inst.charDef.animations.idle, true);
-                    inst.isProximity = false;
-                });
+                    onNPCLeave?.(inst.npc);
+                }
+                return;
+            }
+
+            if (dist < DIST_DIALOGUE) {
+                // Close enough to auto-trigger dialogue
+                if (inst.proximityState !== 'dialogue') {
+                    triggerDialogue(inst);
+                }
+            } else if (dist < DIST_WAVE) {
+                // Wave zone — only wave once per approach
+                if (inst.proximityState === 'far' &&
+                    inst.currentAnim === inst.charDef.animations.idle &&
+                    now - inst.lastDialogueTime > DIALOGUE_COOLDOWN_MS) {
+                    inst.proximityState = 'wave';
+                    playAnim(inst, inst.charDef.animations.wave, false, () => {
+                        if (inst.proximityState === 'wave') {
+                            inst.proximityState = 'far';
+                            playAnim(inst, inst.charDef.animations.idle, true);
+                        }
+                    });
+                }
+            } else {
+                // Player moved away — reset wave state
+                if (inst.proximityState === 'wave') {
+                    inst.proximityState = 'far';
+                }
             }
         });
     });
@@ -121,6 +171,13 @@ export async function placeNPCs(
                 if (!rule.loop) playAnim(inst, inst.charDef.animations.idle, true);
             });
         },
+        setDialogueClosed: (npcId) => {
+            const inst = instances.get(npcId);
+            if (!inst) return;
+            inst.proximityState = 'far';
+            inst.lastDialogueTime = Date.now();
+            playAnim(inst, inst.charDef.animations.idle, true);
+        },
         dispose: () => {
             instances.forEach(inst => {
                 inst.animGroups.forEach(ag => { ag.stop(); ag.dispose(); });
@@ -131,12 +188,11 @@ export async function placeNPCs(
     };
 }
 
-// Uses ORIGINAL anim group names — no suffix, no remapping
 function playAnim(inst: NPCInstance, animName: string, loop: boolean, onEnd?: () => void): void {
     inst.animGroups.forEach(ag => ag.stop());
     const ag = inst.animGroups.find(a => a.name === animName);
     if (!ag) {
-        console.warn(`Anim not found: "${animName}". Have:`, inst.animGroups.map(a => a.name).slice(0, 5));
+        console.warn(`Anim not found: "${animName}".`);
         inst.animGroups.find(a => a.name === inst.charDef.animations.idle)?.play(true);
         return;
     }

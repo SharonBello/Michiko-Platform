@@ -141,3 +141,10 @@
         color: var(--color-text);
     }
 }
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    cursor: pointer;
+}

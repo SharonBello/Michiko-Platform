@@ -2,7 +2,6 @@ import * as BABYLON from '@babylonjs/core';
 import type { SceneLayout } from '@michiko/types';
 import { hexToColor3, hexToColor4 } from './themeApplier';
 
-// Environment builders
 import { buildDefaultProps } from './environments/default';
 import { buildSpaceProps } from './environments/space';
 import { buildLibraryProps } from './environments/library';
@@ -21,13 +20,12 @@ const BUILDERS: Record<string, (scene: BABYLON.Scene, layout: SceneLayout) => vo
 };
 
 export function buildScene(scene: BABYLON.Scene, layout: SceneLayout): void {
-  // ── Background / fog ──────────────────────────────────────
   scene.clearColor = hexToColor4(layout.skyColor);
   scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
   scene.fogColor = hexToColor3(layout.fogColor);
   scene.fogDensity = layout.fogDensity;
 
-  // ── Lighting ──────────────────────────────────────────────
+  // Lighting
   const ambient = new BABYLON.HemisphericLight('ambient', new BABYLON.Vector3(0, 1, 0), scene);
   ambient.diffuse = hexToColor3(layout.accentColor);
   ambient.groundColor = hexToColor3(layout.ambientColor);
@@ -37,48 +35,37 @@ export function buildScene(scene: BABYLON.Scene, layout: SceneLayout): void {
   sun.diffuse = BABYLON.Color3.White();
   sun.intensity = 1.2;
 
-  // ── Ground ────────────────────────────────────────────────
+  // Ground — checkCollisions MUST be true so camera gravity works
   const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 60, height: 60, subdivisions: 4 }, scene);
+  ground.checkCollisions = true;
+  ground.receiveShadows = true;
   const groundMat = new BABYLON.StandardMaterial('groundMat', scene);
   groundMat.diffuseColor = hexToColor3(layout.groundColor);
   groundMat.specularColor = BABYLON.Color3.Black();
   ground.material = groundMat;
-  ground.receiveShadows = true;
 
-  // ── Grid overlay ──────────────────────────────────────────
   buildGridOverlay(scene, layout.accentColor, 60);
-
-  // ── Skydome ───────────────────────────────────────────────
   buildSkydome(scene, layout.skyColor);
-
-  // ── Atmosphere particles ──────────────────────────────────
   buildAtmosphere(scene, layout.accentColor);
 
-  // ── Environment-specific props ────────────────────────────
   const builder = BUILDERS[layout.environment] ?? buildDefaultProps;
   builder(scene, layout);
 }
 
-// ── Helpers ───────────────────────────────────────────────────
-
 function buildGridOverlay(scene: BABYLON.Scene, accentHex: string, size: number) {
   const accent = hexToColor3(accentHex);
-  const step = 8;
-  const half = size / 2;
-
+  const step = 8, half = size / 2;
   for (let x = -half; x <= half; x += step) {
     const line = BABYLON.MeshBuilder.CreateLines(`gridX_${x}`, {
       points: [new BABYLON.Vector3(x, 0.01, -half), new BABYLON.Vector3(x, 0.01, half)]
     }, scene);
-    line.color = accent;
-    line.alpha = 0.15;
+    line.color = accent; line.alpha = 0.15;
   }
   for (let z = -half; z <= half; z += step) {
     const line = BABYLON.MeshBuilder.CreateLines(`gridZ_${z}`, {
       points: [new BABYLON.Vector3(-half, 0.01, z), new BABYLON.Vector3(half, 0.01, z)]
     }, scene);
-    line.color = accent;
-    line.alpha = 0.15;
+    line.color = accent; line.alpha = 0.15;
   }
 }
 
@@ -86,7 +73,6 @@ function buildSkydome(scene: BABYLON.Scene, skyHex: string) {
   const dome = BABYLON.MeshBuilder.CreateSphere('skydome',
     { diameter: 150, sideOrientation: BABYLON.Mesh.BACKSIDE }, scene);
   dome.position.y = 20;
-
   const mat = new BABYLON.StandardMaterial('skydomeMat', scene);
   mat.diffuseColor = hexToColor3(skyHex);
   mat.emissiveColor = hexToColor3(skyHex);

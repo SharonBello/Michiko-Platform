@@ -40,17 +40,48 @@ export function useGameEngine(
 
         const camera = new BABYLON.UniversalCamera(
             'cam',
-            new BABYLON.Vector3(0, 1.7, -15),
+            new BABYLON.Vector3(0, 1.7, -12),
             scene
         );
         camera.setTarget(new BABYLON.Vector3(0, 1.5, 0));
         camera.attachControl(canvasRef.current, true);
-        camera.keysUp = [87, 38];
-        camera.keysDown = [83, 40];
-        camera.keysLeft = [65, 37];
-        camera.keysRight = [68, 39];
-        camera.speed = 0.15;
+        // WASD only — arrow keys conflict with UI navigation and feel wrong for rotation
+        camera.keysUp = [87, 38];    // W + Up
+        camera.keysDown = [83, 40];    // S + Down
+        camera.keysLeft = [65, 37];    // A + Left
+        camera.keysRight = [68, 39];    // D + Right
+        camera.keysUpward = [];
+        camera.keysDownward = [];
+        camera.speed = 0.18;
         camera.minZ = 0.1;
+        camera.fov = 1.2;   // wider FOV = more immersive
+        camera.inertia = 0.85;  // smooth deceleration
+        camera.angularSensibility = 800;
+
+        // Collision & gravity so player stays on ground
+        camera.checkCollisions = true;
+        camera.applyGravity = true;
+        camera.ellipsoid = new BABYLON.Vector3(0.4, 0.85, 0.4);
+        scene.gravity = new BABYLON.Vector3(0, -0.98, 0);
+        scene.collisionsEnabled = true;
+
+        // Head bob — fires every frame
+        let bobTime = 0;
+        const BASE_Y = 1.7;
+        scene.registerBeforeRender(() => {
+            const vel = camera.speed;
+            const moving =
+                (camera as any)._localDirection?.length() > 0.01;
+            if (moving) {
+                bobTime += 0.1;
+                camera.position.y = BASE_Y + Math.sin(bobTime * 2) * 0.028;
+            } else {
+                // Smoothly settle back to rest height
+                camera.position.y += (BASE_Y - camera.position.y) * 0.12;
+                bobTime = 0;
+            }
+        });
+
         cameraRef.current = camera;
 
         // ── Load NPCs async ──────────────────────────────────
@@ -61,7 +92,8 @@ export function useGameEngine(
                 scene,
                 scene0.npcs,
                 blueprint.sceneLayout,
-                (npc) => onNPCClickRef.current(npc.id)
+                (npc) => onNPCClickRef.current(npc.id),   // proximity auto-trigger
+                (npc) => onNPCClickRef.current(npc.id + '__leave')  // player walked away
             ).then(controller => {
                 console.log('🟢 placeNPCs resolved, disposed:', disposed);
                 if (disposed) {
@@ -89,6 +121,7 @@ export function useGameEngine(
         }
 
         scene.onPointerDown = (_evt, pickResult) => {
+            console.log('🖱️ pointer down, hit:', pickResult?.pickedMesh?.name ?? 'none');
             if (!pickResult?.hit || !pickResult.pickedMesh) return;
             const name = pickResult.pickedMesh.name;
             const match = name.match(/whb_(.+)/);
@@ -114,7 +147,6 @@ export function useGameEngine(
 
     /** Call when dialogue opens for an NPC */
     const onDialogueOpen = (npcId: string) => {
-        console.log('onDialogueOpen', npcId)
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
         if (!ctrl || !npc) return;
@@ -124,10 +156,9 @@ export function useGameEngine(
         });
         ctrl.triggerEvent('dialogue_open', npcId, rule);
     };
-    
+
     /** Call when dialogue closes */
     const onDialogueClose = (npcId: string) => {
-        console.log('onDialogueClose', npcId)
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
         if (!ctrl || !npc) return;
@@ -135,11 +166,11 @@ export function useGameEngine(
             environment: blueprint?.sceneLayout.environment,
         });
         ctrl.triggerEvent('dialogue_close', npcId, rule);
+        ctrl.setDialogueClosed(npcId);  // reset proximity state + cooldown
     };
 
     /** Call when a question appears */
     const onQuestionOpen = (npcId: string) => {
-        console.log('onQuestionOpen', npcId)
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
         if (!ctrl || !npc) return;
@@ -148,19 +179,18 @@ export function useGameEngine(
         });
         ctrl.triggerEvent('question_open', npcId, rule);
     };
-    
+
     /** Call when player answers correctly */
     const onAnswerCorrect = (npcId: string, totalScore: number, maxScore: number) => {
-        console.log('onAnswerCorrect', npcId)
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
         if (!ctrl || !npc) return;
 
         correctStreakRef.current += 1;
         wrongStreakRef.current = 0;
-        
+
         const streak = correctStreakRef.current;
-        
+
         const rule = getAnimation('answer_correct', npc, {
             environment: blueprint?.sceneLayout.environment,
             ageGroup: blueprint?.ageGroup,
@@ -168,7 +198,7 @@ export function useGameEngine(
             scoreRatio: maxScore > 0 ? totalScore / maxScore : 0,
         });
         ctrl.triggerEvent('answer_correct', npcId, rule);
-        
+
         // Bonus streak animation for all NPCs at 3+
         if (streak === 3 || streak === 5 || streak === 10) {
             getAllNPCIds(blueprint).forEach(id => {
@@ -185,14 +215,13 @@ export function useGameEngine(
 
     /** Call when player answers wrong */
     const onAnswerWrong = (npcId: string) => {
-        console.log('onAnswerWrong', npcId)
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
         if (!ctrl || !npc) return;
 
         wrongStreakRef.current += 1;
         correctStreakRef.current = 0;
-        
+
         const streak = wrongStreakRef.current;
 
         const rule = getAnimation('answer_wrong', npc, {
