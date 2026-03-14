@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as BABYLON from '@babylonjs/core';
 import { buildScene } from './engine/sceneBuilder';
 import { placeNPCs } from './engine/npcPlacer';
@@ -13,6 +13,7 @@ export function useGameEngine(
 ) {
     const engineRef = useRef<BABYLON.Engine | null>(null);
     const sceneRef = useRef<BABYLON.Scene | null>(null);
+    const [sceneReady, setSceneReady] = React.useState(false);
     const cameraRef = useRef<BABYLON.UniversalCamera | null>(null);
     const npcControllerRef = useRef<NPCController | null>(null);
     // Always points to latest onNPCClick — prevents stale closure in placeNPCs/onPointerDown
@@ -35,6 +36,7 @@ export function useGameEngine(
 
         const scene = new BABYLON.Scene(engine);
         sceneRef.current = scene;
+        setSceneReady(true);
 
         buildScene(scene, blueprint.sceneLayout);
 
@@ -92,8 +94,10 @@ export function useGameEngine(
                 scene,
                 scene0.npcs,
                 blueprint.sceneLayout,
-                (npc) => onNPCClickRef.current(npc.id),   // proximity auto-trigger
-                (npc) => onNPCClickRef.current(npc.id + '__leave')  // player walked away
+                (npc) => onNPCClickRef.current(npc.id),
+                (npc) => onNPCClickRef.current(npc.id + '__leave'),
+                blueprint.subject,
+                blueprint.theme,
             ).then(controller => {
                 console.log('🟢 placeNPCs resolved, disposed:', disposed);
                 if (disposed) {
@@ -277,6 +281,7 @@ export function useGameEngine(
 
     return {
         sceneRef,
+        sceneReady,
         cameraRef,
         onDialogueOpen,
         onDialogueClose,

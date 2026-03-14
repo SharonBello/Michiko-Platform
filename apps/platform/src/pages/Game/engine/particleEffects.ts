@@ -1,46 +1,64 @@
 import * as BABYLON from '@babylonjs/core';
 
-/**
- * Gold star burst on correct answer — fires from NPC position
- */
+// Babylon ParticleSystem REQUIRES a texture — without it particles are invisible.
+// We create a tiny 8x8 white circle texture procedurally so no file is needed.
+function makeParticleTex(scene: BABYLON.Scene, name: string): BABYLON.DynamicTexture {
+    const tex = new BABYLON.DynamicTexture(name, { width: 32, height: 32 }, scene, false);
+    const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
+    ctx.clearRect(0, 0, 32, 32);
+    ctx.beginPath();
+    ctx.arc(16, 16, 14, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    tex.update();
+    tex.hasAlpha = true;
+    return tex;
+}
+
 export function burstCorrect(
     scene: BABYLON.Scene,
     position: BABYLON.Vector3,
     _theme?: string
 ): void {
-    const ps = new BABYLON.ParticleSystem('burst_correct', 60, scene);
+    const tex = makeParticleTex(scene, 'ptex_correct_' + Date.now());
+    const ps = new BABYLON.ParticleSystem('burst_correct_' + Date.now(), 30, scene);
+
+    ps.particleTexture = tex;
     ps.emitter = position.clone();
-    ps.minEmitBox = new BABYLON.Vector3(-0.2, 0, -0.2);
-    ps.maxEmitBox = new BABYLON.Vector3(0.2, 0, 0.2);
+    ps.minEmitBox = new BABYLON.Vector3(-0.15, 0, -0.15);
+    ps.maxEmitBox = new BABYLON.Vector3(0.15, 0, 0.15);
 
-    ps.color1 = new BABYLON.Color4(1.0, 0.9, 0.1, 1.0);   // gold
-    ps.color2 = new BABYLON.Color4(1.0, 0.6, 0.0, 1.0);   // amber
-    ps.colorDead = new BABYLON.Color4(1.0, 1.0, 1.0, 0.0);
+    ps.color1 = new BABYLON.Color4(1.0, 0.88, 0.2, 0.8);  // gold, softer
+    ps.color2 = new BABYLON.Color4(1.0, 0.65, 0.0, 0.6);
+    ps.colorDead = new BABYLON.Color4(1.0, 1.0, 0.5, 0.0);
 
-    ps.minSize = 0.06; ps.maxSize = 0.18;
-    ps.minLifeTime = 0.6; ps.maxLifeTime = 1.2;
-    ps.emitRate = 120;
-    ps.manualEmitCount = 60;
+    ps.minSize = 0.05; ps.maxSize = 0.14;
+    ps.minLifeTime = 0.8; ps.maxLifeTime = 1.8;
+    ps.emitRate = 0;
+    ps.manualEmitCount = 30;
+
     ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
-
-    ps.direction1 = new BABYLON.Vector3(-2, 6, -2);
-    ps.direction2 = new BABYLON.Vector3(2, 8, 2);
-    ps.gravity = new BABYLON.Vector3(0, -4, 0);
-    ps.minEmitPower = 1; ps.maxEmitPower = 3;
-    ps.updateSpeed = 0.02;
+    ps.direction1 = new BABYLON.Vector3(-1.5, 3, -1.5);
+    ps.direction2 = new BABYLON.Vector3(1.5, 5, 1.5);
+    ps.gravity = new BABYLON.Vector3(0, -2, 0);
+    ps.minEmitPower = 0.8; ps.maxEmitPower = 2;
+    ps.updateSpeed = 0.016;
 
     ps.start();
-    setTimeout(() => { ps.stop(); setTimeout(() => ps.dispose(), 2000); }, 300);
+    setTimeout(() => {
+        ps.stop();
+        setTimeout(() => { ps.dispose(); tex.dispose(); }, 2000);
+    }, 100);
 }
 
-/**
- * Red spark burst on wrong answer
- */
 export function burstWrong(
     scene: BABYLON.Scene,
     position: BABYLON.Vector3
 ): void {
-    const ps = new BABYLON.ParticleSystem('burst_wrong', 40, scene);
+    const tex = makeParticleTex(scene, 'ptex_wrong_' + Date.now());
+    const ps = new BABYLON.ParticleSystem('burst_wrong_' + Date.now(), 20, scene);
+
+    ps.particleTexture = tex;
     ps.emitter = position.clone();
     ps.minEmitBox = new BABYLON.Vector3(-0.1, 0, -0.1);
     ps.maxEmitBox = new BABYLON.Vector3(0.1, 0, 0.1);
@@ -49,18 +67,21 @@ export function burstWrong(
     ps.color2 = new BABYLON.Color4(0.8, 0.0, 0.0, 1.0);
     ps.colorDead = new BABYLON.Color4(0.5, 0.0, 0.0, 0.0);
 
-    ps.minSize = 0.04; ps.maxSize = 0.12;
-    ps.minLifeTime = 0.4; ps.maxLifeTime = 0.8;
-    ps.emitRate = 80;
-    ps.manualEmitCount = 40;
-    ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+    ps.minSize = 0.04; ps.maxSize = 0.10;
+    ps.minLifeTime = 0.5; ps.maxLifeTime = 1.0;
+    ps.emitRate = 0;
+    ps.manualEmitCount = 20;
 
-    ps.direction1 = new BABYLON.Vector3(-3, 4, -3);
-    ps.direction2 = new BABYLON.Vector3(3, 6, 3);
-    ps.gravity = new BABYLON.Vector3(0, -6, 0);
-    ps.minEmitPower = 1; ps.maxEmitPower = 2;
-    ps.updateSpeed = 0.02;
+    ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+    ps.direction1 = new BABYLON.Vector3(-2, 2, -2);
+    ps.direction2 = new BABYLON.Vector3(2, 4, 2);
+    ps.gravity = new BABYLON.Vector3(0, -3, 0);
+    ps.minEmitPower = 0.5; ps.maxEmitPower = 1.5;
+    ps.updateSpeed = 0.016;
 
     ps.start();
-    setTimeout(() => { ps.stop(); setTimeout(() => ps.dispose(), 1500); }, 200);
+    setTimeout(() => {
+        ps.stop();
+        setTimeout(() => { ps.dispose(); tex.dispose(); }, 1500);
+    }, 100);
 }

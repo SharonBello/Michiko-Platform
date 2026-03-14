@@ -59,23 +59,29 @@ export class SoundManager {
         this.environment = environment;
     }
 
-    /** Start ambient music for the current environment */
+    /** Start ambient music for the current environment.
+     *  Browsers block audio until a user gesture — we listen for the first
+     *  click/keydown on the canvas and start then. */
     startAmbient(): void {
         const track = AMBIENT_TRACKS[this.environment] ?? AMBIENT_TRACKS['default']!;
         const path = `/audio/${track}`;
 
-        // Gracefully skip if file doesn't exist yet
         this.ambient = new BABYLON.Sound(
             'ambient',
             path,
             this.scene,
-            () => { this.ambient?.play(); },
-            {
-                loop: true,
-                autoplay: false,
-                volume: 0.35,
-            }
+            null,   // don't autoplay on load
+            { loop: true, autoplay: false, volume: 0.35 }
         );
+
+        // Play on first user interaction (satisfies browser autoplay policy)
+        const startOnGesture = () => {
+            this.ambient?.play();
+            window.removeEventListener('click', startOnGesture);
+            window.removeEventListener('keydown', startOnGesture);
+        };
+        window.addEventListener('click', startOnGesture, { once: true });
+        window.addEventListener('keydown', startOnGesture, { once: true });
     }
 
     /** Play a one-shot SFX */

@@ -13,10 +13,24 @@ const POSITIONS = [
     new BABYLON.Vector3(0, 0, -5),
 ];
 
+/**
+ * Raycast straight down from (x, 10, z) to find the actual floor Y.
+ * Falls back to y=0 if nothing is hit (e.g. outside the mesh).
+ */
+function snapToGround(scene: BABYLON.Scene, x: number, z: number): number {
+    const origin = new BABYLON.Vector3(x, 20, z);
+    const direction = new BABYLON.Vector3(0, -1, 0);
+    const ray = new BABYLON.Ray(origin, direction, 40);
+    const hit = scene.pickWithRay(ray, m =>
+        m.isPickable && m.isVisible && m.name !== '__root__' && !m.name.startsWith('hitbox')
+    );
+    return hit?.pickedPoint ? hit.pickedPoint.y : 0;
+}
+
 // Proximity distances (metres)
 const DIST_WAVE = 5.0;   // NPC waves as player approaches
 const DIST_DIALOGUE = 4.0;   // Auto-open dialogue
-const DIALOGUE_COOLDOWN_MS = 8000; // Don't re-trigger for 8s after dismissal
+const DIALOGUE_COOLDOWN_MS = 12000; // Don't re-trigger for 12s after dismissal
 
 interface NPCInstance {
     npc: NPC;
@@ -39,16 +53,23 @@ export async function placeNPCs(
     scene: BABYLON.Scene,
     npcs: NPC[],
     layout: SceneLayout,
-    onNPCProximity: (npc: NPC) => void,   // fires when player walks up close
-    onNPCLeave?: (npc: NPC) => void    // fires when player walks away mid-dialogue
+    onNPCProximity: (npc: NPC) => void,
+    onNPCLeave?: (npc: NPC) => void,
+    subject?: string,
+    theme?: string,
 ): Promise<NPCController> {
 
     const instances = new Map<string, NPCInstance>();
 
+    const usedCharIds: string[] = [];
+
     for (let i = 0; i < npcs.length; i++) {
         const npc = npcs[i]!;
-        const pos = POSITIONS[i % POSITIONS.length]!;
-        const charDef = pickCharacter(layout.environment, npc.role);
+        const basePos = POSITIONS[i % POSITIONS.length]!;
+        const groundY = snapToGround(scene, basePos.x, basePos.z);
+        const pos = new BABYLON.Vector3(basePos.x, groundY, basePos.z);
+        const charDef = pickCharacter(layout.environment, npc.role, usedCharIds, subject, theme);
+        usedCharIds.push(charDef.id);
 
         const result = await SceneLoader.ImportMeshAsync('', '/npcs/', charDef.file, scene);
 
@@ -90,7 +111,7 @@ export async function placeNPCs(
             height: 1.8, diameter: 0.7, tessellation: 8
         }, scene);
         hitbox.position = pos.clone();
-        hitbox.position.y = 0.9;
+        hitbox.position.y = groundY + 0.9;
         hitbox.isPickable = true;
         hitbox.visibility = 0;
         hitbox.actionManager = new BABYLON.ActionManager(scene);

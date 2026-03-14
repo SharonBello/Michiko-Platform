@@ -54,20 +54,20 @@ export default function PlayerGame() {
     }
 
     const {
-        sceneRef, cameraRef,
+        sceneRef, cameraRef, sceneReady,
         onDialogueOpen, onDialogueClose,
         onQuestionOpen, onAnswerCorrect, onAnswerWrong,
         onGameComplete,
     } = useGameEngine(canvasRef, blueprint, handleNPCClick);
 
-    // Start sound manager once scene is ready
+    // Start sound manager once scene is ready — sceneReady is a real state so useEffect fires
     useEffect(() => {
-        if (!sceneRef.current) return;
+        if (!sceneReady || !sceneRef.current) return;
         const sm = new SoundManager(sceneRef.current, blueprint.sceneLayout.environment);
         sm.startAmbient();
         soundRef.current = sm;
         return () => { sm.dispose(); soundRef.current = null; };
-    }, [sceneRef.current]);
+    }, [sceneReady]);
 
     function handleDialogueDismiss() {
         if (activeNpcId) onDialogueClose(activeNpcId);
@@ -89,10 +89,13 @@ export default function PlayerGame() {
             // Burst particles from NPC position
             const scene0 = getCurrentScene(blueprint, gameState);
             const npcId = activeNpcId ?? scene0?.npcs?.[0]?.id ?? null;
-            const npcPos = npcId
-                ? sceneRef.current.getTransformNodeByName(`npc_root_${npcId}`)?.position
-                ?? cameraRef.current.position.add(new BABYLON.Vector3(0, 0, 3))
-                : cameraRef.current.position.add(new BABYLON.Vector3(0, 0, 3));
+            // Spawn particles at chest height of NPC, not root (which is y=0)
+            const npcRoot = npcId
+                ? sceneRef.current.getTransformNodeByName(`npc_root_${npcId}`)
+                : null;
+            const npcPos = npcRoot
+                ? npcRoot.position.clone().add(new BABYLON.Vector3(0, 1.4, 0))
+                : cameraRef.current.position.clone().add(new BABYLON.Vector3(0, 0, 3));
 
             if (correct) {
                 burstCorrect(sceneRef.current, npcPos, blueprint.theme);
@@ -123,8 +126,15 @@ export default function PlayerGame() {
             return;
         }
 
+        // Reset NPC proximity cooldown so it doesn't re-trigger immediately
+        if (activeNpcId) onDialogueClose(activeNpcId);
+
         setTransitioning(true);
-        setTimeout(() => { setUiMode('explore'); setTransitioning(false); }, 2000);
+        setTimeout(() => {
+            setUiMode('explore');
+            setActiveNpcId(null);
+            setTransitioning(false);
+        }, 2000);
     }
 
     // Save score when complete
@@ -160,6 +170,7 @@ export default function PlayerGame() {
                 <>
                     <div
                         className={styles.backdrop}
+                        style={{ zIndex: 15 }}
                         onClick={() => { if (activeNpcId) onDialogueClose(activeNpcId); setUiMode('explore'); setActiveNpcId(null); }}
                     />
                     <NPCDialogue
@@ -174,9 +185,11 @@ export default function PlayerGame() {
                 <>
                     <div
                         className={styles.backdrop}
+                        style={{ zIndex: 15 }}
                         onClick={() => { setUiMode('explore'); setActiveNpcId(null); }}
                     />
                     <QuestionOverlay
+                        key={question.text}
                         question={question}
                         index={gameState.answered.size}
                         total={gameState.totalQuestions}

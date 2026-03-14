@@ -306,26 +306,181 @@ export function getCharacter(id: string): CharacterDef | undefined {
  * Pick the best character for a given environment and role.
  * Falls back to xbot if nothing matches.
  */
+function randFrom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
+// Maps EnvironmentType values → category strings used in CharacterDef.environments
+const ENV_CATEGORY: Record<string, string> = {
+  roman_colosseum: 'ancient', ancient_egypt: 'ancient', greek_temple: 'ancient',
+  aztec_temple: 'ancient', ancient_china: 'ancient', moorish_palace: 'ancient',
+  mesopotamia: 'ancient', persian_palace: 'ancient', samurai_japan: 'ancient',
+  viking_village: 'medieval', medieval_castle: 'medieval', medieval_market: 'medieval',
+  crusader_fortress: 'medieval', plague_village: 'medieval', monastery: 'medieval',
+  jousting_arena: 'medieval',
+  pirate_ship: 'exploration', desert_ruins: 'exploration', jungle_temple: 'exploration',
+  cave: 'exploration', arctic: 'exploration', underwater: 'exploration',
+  volcano: 'exploration', island_paradise: 'exploration', coral_reef: 'exploration',
+  rainforest_canopy: 'exploration', desert_oasis: 'exploration',
+  victorian_london: 'industry', industrial_factory: 'industry', wild_west: 'industry',
+  steam_workshop: 'industry', silk_road: 'industry',
+  war_trenches: 'war', underground_bunker: 'war', ancient_battlefield: 'war',
+  naval_warship: 'war', cold_war_base: 'war', resistance_hideout: 'war',
+  civil_rights_street: 'civil', suffragette_march: 'civil', revolutionary_paris: 'civil',
+  colonial_america: 'civil', immigrant_ship: 'civil', freedom_trail: 'civil',
+  laboratory: 'science', space_station: 'science', observatory: 'science',
+  deep_sea_lab: 'science', dinosaur_era: 'science', prehistoric_savanna: 'science',
+  fossil_dig: 'science', particle_accelerator: 'science',
+  renaissance_workshop: 'art', impressionist_garden: 'art', baroque_palace: 'art',
+  abstract_art_studio: 'art', surrealist_dreamscape: 'art', graffiti_district: 'art',
+  pottery_workshop: 'art',
+  library: 'literature', theater_stage: 'literature', poetry_cafe: 'literature',
+  music_hall: 'literature', opera_house: 'literature', printing_press: 'literature',
+  storytellers_fire: 'literature',
+  contemporary_city: 'contemporary', futuristic_city: 'contemporary', space_colony: 'contemporary',
+  cyberpunk_alley: 'contemporary', eco_village: 'contemporary', news_room: 'contemporary',
+  enchanted_forest: 'fantasy', dragon_lair: 'fantasy', olympus: 'fantasy',
+  underworld: 'fantasy', fairy_ring: 'fantasy', crystal_cave: 'fantasy',
+  marketplace: 'contemporary', sports_arena: 'contemporary', default: '',
+};
+
+// Maps subject keywords → preferred character IDs (ordered by fit)
+const SUBJECT_CHARS: Record<string, string[]> = {
+  // Science
+  science: ['doctor', 'scientist_mouse', 'young_student', 'teen_boy'],
+  biology: ['doctor', 'scientist_mouse'],
+  chemistry: ['doctor', 'scientist_mouse'],
+  physics: ['scientist_mouse', 'doctor'],
+  math: ['scientist_mouse', 'doctor', 'young_student'],
+  geography: ['explorer', 'ancient_elder'],
+  health: ['doctor', 'sporty_granny'],
+  // History — general
+  history: ['ancient_elder', 'explorer', 'peasant_man', 'peasant_girl'],
+  ancient: ['ancient_elder', 'peasant_man', 'peasant_girl', 'explorer'],
+  medieval: ['castle_guard', 'medieval_knight', 'peasant_man', 'ancient_elder'],
+  // War — soldier always first
+  war: ['soldier', 'swat', 'explorer', 'medieval_knight'],
+  wwi: ['soldier', 'explorer'],
+  wwii: ['soldier', 'swat', 'explorer'],
+  'world war': ['soldier', 'swat', 'explorer'],
+  military: ['soldier', 'swat', 'medieval_knight'],
+  conflict: ['soldier', 'medieval_knight', 'explorer'],
+  resistance: ['soldier', 'swat', 'explorer'],
+  nazi: ['soldier', 'swat'],
+  holocaust: ['soldier', 'young_student'],
+  // Civil / social
+  social: ['suit_man', 'young_student', 'sporty_granny'],
+  economics: ['suit_man', 'the_boss'],
+  contemporary: ['suit_man', 'young_student', 'teen_boy', 'pop_girl'],
+  // Arts
+  literature: ['ancient_elder', 'pop_girl', 'young_student'],
+  art: ['pop_girl', 'young_student', 'suit_man'],
+  music: ['pop_girl', 'teen_boy', 'timmy_boy'],
+  language: ['young_student', 'ancient_elder', 'pop_girl'],
+  // Other
+  fantasy: ['ancient_elder', 'medieval_knight', 'timmy_boy', 'silly_cartoon'],
+  sports: ['sporty_granny', 'teen_boy', 'timmy_boy'],
+};
+
+// Maps theme keywords → bonus character IDs
+const THEME_CHARS: Record<string, string[]> = {
+  mystery: ['antagonist', 'ancient_elder', 'villain'],
+  adventure: ['explorer', 'medieval_knight', 'teen_boy'],
+  horror: ['antagonist', 'villain', 'the_boss'],
+  comedy: ['sporty_granny', 'timmy_boy', 'silly_cartoon'],
+  romance: ['pop_girl', 'young_student', 'peasant_girl'],
+  war: ['soldier', 'medieval_knight', 'swat'],
+  magic: ['ancient_elder', 'scientist_mouse', 'timmy_boy'],
+  survival: ['explorer', 'soldier', 'swat'],
+  discovery: ['explorer', 'scientist_mouse', 'young_student'],
+  rebellion: ['antagonist', 'explorer', 'teen_boy'],
+  leadership: ['suit_man', 'the_boss', 'medieval_knight'],
+  friendship: ['young_student', 'teen_boy', 'pop_girl', 'girl'],
+};
+
+// NPC role (guide/villain/neutral) → preferred CharacterRoles
+const ROLE_MAP: Record<string, CharacterRole[]> = {
+  guide: ['guide', 'hero', 'neutral'],
+  villain: ['villain'],
+  neutral: ['neutral', 'hero', 'comic', 'guide'],
+};
+
+export interface PickContext {
+  environment: string;
+  subject?: string;
+  theme?: string;
+  npcRole?: 'guide' | 'villain' | 'neutral';
+  exclude?: string[];
+}
+
+/**
+ * Score-based character picker.
+ * Uses environment category, subject, theme, and NPC role to find the best fit.
+ * Among equal-score candidates, picks randomly for variety.
+ */
 export function pickCharacter(
   environment: string,
-  role: CharacterRole,
-  exclude: string[] = []
+  npcRole: 'guide' | 'villain' | 'neutral' = 'neutral',
+  exclude: string[] = [],
+  subject?: string,
+  theme?: string,
 ): CharacterDef {
-  // Exact match: right role + fits this environment
-  const exact = CHARACTERS.find(c =>
-    c.role === role &&
-    (c.environments.length === 0 || c.environments.includes(environment)) &&
-    !exclude.includes(c.id)
-  );
-  if (exact) return exact;
+  const category = ENV_CATEGORY[environment] ?? '';
+  const preferredRoles = ROLE_MAP[npcRole] ?? ['neutral'];
 
-  // Relax: any role that fits the environment
-  const envMatch = CHARACTERS.find(c =>
-    (c.environments.length === 0 || c.environments.includes(environment)) &&
-    !exclude.includes(c.id)
+  // Build subject + theme preference lists (lowercased keywords)
+  const subjectKey = Object.keys(SUBJECT_CHARS).find(k =>
+    subject?.toLowerCase().includes(k)
   );
-  if (envMatch) return envMatch;
+  const themeKey = Object.keys(THEME_CHARS).find(k =>
+    theme?.toLowerCase().includes(k)
+  );
+  const subjectPref = subjectKey ? SUBJECT_CHARS[subjectKey]! : [];
+  const themePref = themeKey ? THEME_CHARS[themeKey]! : [];
 
-  // Final fallback
-  return CHARACTERS.find(c => c.id === 'xbot')!;
+  const available = CHARACTERS.filter(c => !(exclude ?? []).includes(c.id));
+
+  // Score each character
+  const scored = available.map(c => {
+    let score = 0;
+
+    // Role match (highest weight)
+    const roleRank = preferredRoles.indexOf(c.role);
+    if (roleRank === 0) score += 40;
+    else if (roleRank === 1) score += 20;
+    else if (roleRank === 2) score += 10;
+    else score -= 10; // wrong role
+
+    // Environment category match
+    if (c.environments.length === 0) {
+      score += 5; // universal — small bonus
+    } else if (c.environments.includes(category)) {
+      score += 30;
+    }
+
+    // Subject preference
+    const subjectRank = subjectPref.indexOf(c.id);
+    if (subjectRank === 0) score += 25;
+    else if (subjectRank === 1) score += 18;
+    else if (subjectRank <= 3) score += 10;
+
+    // Theme preference
+    const themeRank = themePref.indexOf(c.id);
+    if (themeRank === 0) score += 15;
+    else if (themeRank <= 2) score += 8;
+
+    // Small random tiebreaker so same-score candidates vary
+    score += Math.random() * 5;
+
+    return { c, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  // Pick randomly from the top tier (within 8 points of best)
+  const best = scored[0]?.score ?? 0;
+  const topTier = scored.filter(s => s.score >= best - 8);
+  const picked = randFrom(topTier);
+
+  return picked?.c ?? CHARACTERS.find(c => c.id === 'xbot')!;
 }

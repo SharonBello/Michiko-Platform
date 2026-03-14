@@ -10,13 +10,124 @@ import { buildMedievalProps } from './environments/medieval';
 import { buildLaboratoryProps } from './environments/laboratory';
 import { buildRomeProps } from './environments/rome';
 
+// ── Builder aliases — map all 81 environments to nearest existing builder ──
+// Ancient history → rome feel
+const ancientBuilder = buildRomeProps;
+// Medieval → medieval castle
+const medievalBuilder = buildMedievalProps;
+// Science / space → lab or space
+const scienceBuilder = buildLaboratoryProps;
+const spaceBuilder = buildSpaceProps;
+// Nature / exploration → jungle
+const natureBuilder = buildJungleProps;
+// Literature / art / performance → library
+const libraryBuilder = buildLibraryProps;
+
 const BUILDERS: Record<string, (scene: BABYLON.Scene, layout: SceneLayout) => void> = {
+  // ── Ancient ──────────────────────────────────────────────────
   roman_colosseum: buildRomeProps,
-  space_station: buildSpaceProps,
-  library: buildLibraryProps,
-  jungle_temple: buildJungleProps,
+  ancient_egypt: ancientBuilder,
+  greek_temple: ancientBuilder,
+  aztec_temple: ancientBuilder,
+  ancient_china: ancientBuilder,
+  moorish_palace: ancientBuilder,
+  mesopotamia: ancientBuilder,
+  persian_palace: ancientBuilder,
+  viking_village: medievalBuilder,
+  samurai_japan: ancientBuilder,
+
+  // ── Medieval ─────────────────────────────────────────────────
   medieval_castle: buildMedievalProps,
+  medieval_market: medievalBuilder,
+  crusader_fortress: medievalBuilder,
+  plague_village: medievalBuilder,
+  monastery: libraryBuilder,
+  jousting_arena: medievalBuilder,
+
+  // ── Exploration & Nature ─────────────────────────────────────
+  pirate_ship: natureBuilder,
+  desert_ruins: ancientBuilder,
+  jungle_temple: buildJungleProps,
+  cave: natureBuilder,
+  arctic: natureBuilder,
+  underwater: natureBuilder,
+  volcano: natureBuilder,
+  island_paradise: natureBuilder,
+  coral_reef: natureBuilder,
+  rainforest_canopy: natureBuilder,
+  desert_oasis: ancientBuilder,
+
+  // ── Industry & Revolution ────────────────────────────────────
+  victorian_london: libraryBuilder,
+  industrial_factory: scienceBuilder,
+  wild_west: natureBuilder,
+  steam_workshop: scienceBuilder,
+  silk_road: ancientBuilder,
+
+  // ── War & Conflict ───────────────────────────────────────────
+  war_trenches: medievalBuilder,
+  underground_bunker: scienceBuilder,
+  ancient_battlefield: ancientBuilder,
+  naval_warship: natureBuilder,
+  cold_war_base: scienceBuilder,
+  resistance_hideout: medievalBuilder,
+
+  // ── Civil & Social ───────────────────────────────────────────
+  civil_rights_street: buildDefaultProps,
+  suffragette_march: buildDefaultProps,
+  revolutionary_paris: ancientBuilder,
+  colonial_america: libraryBuilder,
+  immigrant_ship: natureBuilder,
+  freedom_trail: buildDefaultProps,
+
+  // ── Science ──────────────────────────────────────────────────
   laboratory: buildLaboratoryProps,
+  space_station: buildSpaceProps,
+  observatory: spaceBuilder,
+  deep_sea_lab: natureBuilder,
+  dinosaur_era: natureBuilder,
+  prehistoric_savanna: natureBuilder,
+  fossil_dig: natureBuilder,
+  particle_accelerator: scienceBuilder,
+
+  // ── Art & Culture ────────────────────────────────────────────
+  renaissance_workshop: libraryBuilder,
+  impressionist_garden: natureBuilder,
+  baroque_palace: ancientBuilder,
+  abstract_art_studio: buildDefaultProps,
+  surrealist_dreamscape: buildDefaultProps,
+  graffiti_district: buildDefaultProps,
+  pottery_workshop: libraryBuilder,
+
+  // ── Literature & Performance ─────────────────────────────────
+  library: buildLibraryProps,
+  theater_stage: libraryBuilder,
+  poetry_cafe: libraryBuilder,
+  music_hall: libraryBuilder,
+  opera_house: libraryBuilder,
+  printing_press: libraryBuilder,
+  storytellers_fire: natureBuilder,
+
+  // ── Contemporary ─────────────────────────────────────────────
+  contemporary_city: buildDefaultProps,
+  futuristic_city: spaceBuilder,
+  space_colony: spaceBuilder,
+  cyberpunk_alley: scienceBuilder,
+  eco_village: natureBuilder,
+  news_room: buildDefaultProps,
+
+  // ── Fantasy & Mythology ──────────────────────────────────────
+  enchanted_forest: natureBuilder,
+  dragon_lair: medievalBuilder,
+  olympus: ancientBuilder,
+  underworld: medievalBuilder,
+  fairy_ring: natureBuilder,
+  crystal_cave: natureBuilder,
+
+  // ── Other ────────────────────────────────────────────────────
+  marketplace: ancientBuilder,
+  sports_arena: buildRomeProps,
+  default: buildDefaultProps,
 };
 
 export function buildScene(scene: BABYLON.Scene, layout: SceneLayout): void {
