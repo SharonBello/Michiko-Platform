@@ -69,3 +69,10 @@ coverage/
 service-account.json
 apps/platform/public/npcs
 .glb
+
+apps/platform/public/assets/audio/*.mp3
+apps/platform/public/assets/music/*.mp3
+apps/platform/public/assets/sfx/*.mp3
+apps/platform/public/assets/skyboxes/*.hdr
+apps/platform/public/assets/textures/*
+apps/platform/public/assets/props/**/*.glb

@@ -17,5 +17,5 @@
       "@michiko/types": ["../../packages/types/src/index.ts"]
     }
   },
-  "include": ["src", "../api/src/lib/collections.ts"]
+  "include": ["src", "../api/src/lib/collections.ts", "../../packages/types/src/environmentV2.ts"]
 }

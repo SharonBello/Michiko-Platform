@@ -1,10 +1,24 @@
 import React, { useEffect, useRef } from 'react';
 import * as BABYLON from '@babylonjs/core';
+import '@babylonjs/loaders/glTF'; // Required for GLB loading
+
+// Legacy builder (keep for backwards compatibility)
 import { buildScene } from './engine/sceneBuilder';
+
+// NEW: V2 builder
+import { buildSceneV2 } from './engine/sceneBuilderV2';
+
+// NEW: V2 environment configs
+import { getEnvironmentV2 } from './engine/environments-v2';
+import { matchEnvironmentV2 } from './engine/environments-v2/index';
+
 import { placeNPCs } from './engine/npcPlacer';
 import { getAnimation } from './engine/animationRules';
 import type { NPCController } from './engine/npcPlacer';
-import type { Blueprint } from '@michiko/types';
+import type { Blueprint, SceneLayoutV2 } from '@michiko/types';
+
+// Feature flag — set to false to revert to legacy
+const USE_V2_ENVIRONMENTS = true;
 
 export function useGameEngine(
     canvasRef: React.RefObject<HTMLCanvasElement>,
@@ -14,8 +28,11 @@ export function useGameEngine(
     const engineRef = useRef<BABYLON.Engine | null>(null);
     const sceneRef = useRef<BABYLON.Scene | null>(null);
     const [sceneReady, setSceneReady] = React.useState(false);
+    const [loadingProgress, setLoadingProgress] = React.useState(0);
+    const [loadingStage, setLoadingStage] = React.useState('');
     const cameraRef = useRef<BABYLON.UniversalCamera | null>(null);
     const npcControllerRef = useRef<NPCController | null>(null);
+
     // Always points to latest onNPCClick — prevents stale closure in placeNPCs/onPointerDown
     const onNPCClickRef = useRef(onNPCClick);
     onNPCClickRef.current = onNPCClick;
@@ -31,15 +48,16 @@ export function useGameEngine(
 
         const engine = new BABYLON.Engine(canvasRef.current, true, {
             preserveDrawingBuffer: true,
+            stencil: true,
         });
         engineRef.current = engine;
 
         const scene = new BABYLON.Scene(engine);
         sceneRef.current = scene;
-        setSceneReady(true);
 
-        buildScene(scene, blueprint.sceneLayout);
-
+        // ══════════════════════════════════════════════════════════
+        // CRITICAL: Create camera FIRST, before render loop starts
+        // ══════════════════════════════════════════════════════════
         const camera = new BABYLON.UniversalCamera(
             'cam',
             new BABYLON.Vector3(0, 1.7, -12),
@@ -47,49 +65,128 @@ export function useGameEngine(
         );
         camera.setTarget(new BABYLON.Vector3(0, 1.5, 0));
         camera.attachControl(canvasRef.current, true);
-        // WASD only — arrow keys conflict with UI navigation and feel wrong for rotation
-        camera.keysUp = [87, 38];    // W + Up
+
+        // WASD + Arrow keys
+        camera.keysUp = [87, 38];      // W + Up
         camera.keysDown = [83, 40];    // S + Down
         camera.keysLeft = [65, 37];    // A + Left
-        camera.keysRight = [68, 39];    // D + Right
+        camera.keysRight = [68, 39];   // D + Right
         camera.keysUpward = [];
         camera.keysDownward = [];
         camera.speed = 0.18;
         camera.minZ = 0.1;
-        camera.fov = 1.2;   // wider FOV = more immersive
-        camera.inertia = 0.85;  // smooth deceleration
+        camera.fov = 1.2;
+        camera.inertia = 0.85;
         camera.angularSensibility = 800;
 
-        // Collision & gravity so player stays on ground
+        // Collision & gravity
         camera.checkCollisions = true;
         camera.applyGravity = true;
         camera.ellipsoid = new BABYLON.Vector3(0.4, 0.85, 0.4);
         scene.gravity = new BABYLON.Vector3(0, -0.98, 0);
         scene.collisionsEnabled = true;
 
-        // Head bob — fires every frame
+        // Head bob
+        // Head bob + Boundary clamp
         let bobTime = 0;
         const BASE_Y = 1.7;
+        const TERRAIN_SIZE = 100; // Match your terrain.size in config
+        const BOUNDARY = TERRAIN_SIZE / 2 - 5; // Stay 5 units from edge
+
         scene.registerBeforeRender(() => {
-            const vel = camera.speed;
-            const moving =
-                (camera as any)._localDirection?.length() > 0.01;
+            const moving = (camera as any)._localDirection?.length() > 0.01;
             if (moving) {
                 bobTime += 0.1;
                 camera.position.y = BASE_Y + Math.sin(bobTime * 2) * 0.028;
             } else {
-                // Smoothly settle back to rest height
                 camera.position.y += (BASE_Y - camera.position.y) * 0.12;
                 bobTime = 0;
             }
+
+            // ═══ BOUNDARY CLAMP - Keep player on terrain ═══
+            if (camera.position.x > BOUNDARY) camera.position.x = BOUNDARY;
+            if (camera.position.x < -BOUNDARY) camera.position.x = -BOUNDARY;
+            if (camera.position.z > BOUNDARY) camera.position.z = BOUNDARY;
+            if (camera.position.z < -BOUNDARY) camera.position.z = -BOUNDARY;
         });
 
         cameraRef.current = camera;
 
-        // ── Load NPCs async ──────────────────────────────────
+        // ══════════════════════════════════════════════════════════
+        // NOW start render loop (camera exists)
+        // ══════════════════════════════════════════════════════════
+        engine.runRenderLoop(() => scene.render());
+
+        // ══════════════════════════════════════════════════════════
+        // Build Scene (V2 or Legacy) - async
+        // ══════════════════════════════════════════════════════════
+        const initScene = async () => {
+            if (disposed) return;
+
+            try {
+                if (USE_V2_ENVIRONMENTS) {
+                    const envId = blueprint.sceneLayout.environment;
+                    let v2Config = getEnvironmentV2(envId);
+
+                    // If no exact match, try matching by subject
+                    if (!v2Config && blueprint.subject) {
+                        v2Config = matchEnvironmentV2(blueprint.subject);
+                        console.log(`[Engine] No exact V2 match for "${envId}", matched to "${v2Config.id}" by subject`);
+                    }
+
+                    if (v2Config) {
+                        console.log(`[Engine] Using V2 environment: ${v2Config.name}`);
+
+                        const layoutV2: SceneLayoutV2 = {
+                            environment: v2Config.id,
+                            skybox: v2Config.skybox,
+                            terrain: v2Config.terrain,
+                            fog: v2Config.fog,
+                            lighting: v2Config.lighting,
+                            props: v2Config.props,
+                            particles: v2Config.particles,
+                            postProcess: v2Config.postProcess,
+                            audio: v2Config.audio,
+                            spawnPoints: v2Config.spawnPoints,
+                        };
+
+                        await buildSceneV2(scene, layoutV2, (stage, percent) => {
+                            if (disposed) return;
+                            setLoadingStage(stage);
+                            setLoadingProgress(percent);
+                            console.log(`[Engine] ${stage}: ${percent}%`);
+                        });
+                    } else {
+                        console.log(`[Engine] No V2 config found, using legacy builder`);
+                        buildScene(scene, blueprint.sceneLayout);
+                    }
+                } else {
+                    buildScene(scene, blueprint.sceneLayout);
+                }
+
+                if (disposed) return;
+                setSceneReady(true);
+                setLoadingProgress(100);
+                setLoadingStage('Complete');
+
+            } catch (err) {
+                console.error('[Engine] Scene build failed:', err);
+                if (disposed) return;
+                // Fallback to legacy
+                buildScene(scene, blueprint.sceneLayout);
+                setSceneReady(true);
+            }
+        };
+
+        initScene();
+
+        // ══════════════════════════════════════════════════════════
+        // Load NPCs (wait for scene to be ready)
+        // ══════════════════════════════════════════════════════════
         const scene0 = blueprint.scenes[0];
         if (scene0?.npcs) {
             console.log('🟡 Starting NPC load, npcs:', scene0.npcs.map(n => n.name));
+
             placeNPCs(
                 scene,
                 scene0.npcs,
@@ -101,13 +198,11 @@ export function useGameEngine(
             ).then(controller => {
                 console.log('🟢 placeNPCs resolved, disposed:', disposed);
                 if (disposed) {
-                    console.warn('⚠️ Disposed before NPCs loaded — this is React StrictMode double-invoke');
-                    // Don't dispose controller — let it stay for the real mount
+                    console.warn('⚠️ Disposed before NPCs loaded — React StrictMode');
                     return;
                 }
                 npcControllerRef.current = controller;
 
-                // Trigger game_start animation for all NPCs
                 scene0.npcs.forEach((npc, i) => {
                     setTimeout(() => {
                         if (disposed) return;
@@ -120,7 +215,6 @@ export function useGameEngine(
                 });
             }).catch(err => {
                 console.error('❌ Failed to load NPCs:', err);
-
             });
         }
 
@@ -132,7 +226,6 @@ export function useGameEngine(
             if (match) onNPCClickRef.current(match[1]!);
         };
 
-        engine.runRenderLoop(() => scene.render());
         const onResize = () => engine.resize();
         window.addEventListener('resize', onResize);
 
@@ -147,9 +240,8 @@ export function useGameEngine(
         };
     }, [blueprint]);
 
-    // ── Public methods for GamePage to call ──────────────────
+    // ── Public methods for GamePage ──────────────────────────
 
-    /** Call when dialogue opens for an NPC */
     const onDialogueOpen = (npcId: string) => {
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
@@ -161,7 +253,6 @@ export function useGameEngine(
         ctrl.triggerEvent('dialogue_open', npcId, rule);
     };
 
-    /** Call when dialogue closes */
     const onDialogueClose = (npcId: string) => {
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
@@ -170,10 +261,9 @@ export function useGameEngine(
             environment: blueprint?.sceneLayout.environment,
         });
         ctrl.triggerEvent('dialogue_close', npcId, rule);
-        ctrl.setDialogueClosed(npcId);  // reset proximity state + cooldown
+        ctrl.setDialogueClosed(npcId);
     };
 
-    /** Call when a question appears */
     const onQuestionOpen = (npcId: string) => {
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
@@ -184,7 +274,6 @@ export function useGameEngine(
         ctrl.triggerEvent('question_open', npcId, rule);
     };
 
-    /** Call when player answers correctly */
     const onAnswerCorrect = (npcId: string, totalScore: number, maxScore: number) => {
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
@@ -192,7 +281,6 @@ export function useGameEngine(
 
         correctStreakRef.current += 1;
         wrongStreakRef.current = 0;
-
         const streak = correctStreakRef.current;
 
         const rule = getAnimation('answer_correct', npc, {
@@ -203,7 +291,6 @@ export function useGameEngine(
         });
         ctrl.triggerEvent('answer_correct', npcId, rule);
 
-        // Bonus streak animation for all NPCs at 3+
         if (streak === 3 || streak === 5 || streak === 10) {
             getAllNPCIds(blueprint).forEach(id => {
                 if (id === npcId) return;
@@ -217,7 +304,6 @@ export function useGameEngine(
         }
     };
 
-    /** Call when player answers wrong */
     const onAnswerWrong = (npcId: string) => {
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
@@ -225,7 +311,6 @@ export function useGameEngine(
 
         wrongStreakRef.current += 1;
         correctStreakRef.current = 0;
-
         const streak = wrongStreakRef.current;
 
         const rule = getAnimation('answer_wrong', npc, {
@@ -235,7 +320,6 @@ export function useGameEngine(
         });
         ctrl.triggerEvent('answer_wrong', npcId, rule);
 
-        // Villain reacts to player struggling
         if (streak >= 3) {
             getAllNPCIds(blueprint).forEach(id => {
                 if (id === npcId) return;
@@ -249,7 +333,6 @@ export function useGameEngine(
         }
     };
 
-    /** Call when player requests a hint */
     const onHintRequested = (npcId: string) => {
         const ctrl = npcControllerRef.current;
         const npc = getNPC(blueprint, npcId);
@@ -260,7 +343,6 @@ export function useGameEngine(
         ctrl.triggerEvent('hint_requested', npcId, rule);
     };
 
-    /** Call when game completes */
     const onGameComplete = (totalScore: number, maxScore: number) => {
         const ctrl = npcControllerRef.current;
         if (!ctrl || !blueprint) return;
@@ -283,6 +365,8 @@ export function useGameEngine(
         sceneRef,
         sceneReady,
         cameraRef,
+        loadingProgress,
+        loadingStage,
         onDialogueOpen,
         onDialogueClose,
         onQuestionOpen,

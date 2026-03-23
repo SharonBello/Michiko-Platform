@@ -6,7 +6,6 @@ import { Step2Mechanic } from './steps/Step2Mechanic';
 import { Step3Questions } from './steps/Step3Questions';
 import { Step4Review } from './steps/Step4Review';
 import { api } from '../../lib/api';
-import { mockGenerateBlueprint } from '../../lib/mockBlueprint';
 import type { GameMechanic, SubjectDomain, AgeGroup } from '@michiko/types';
 
 export interface WizardData {

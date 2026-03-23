@@ -1,7 +1,6 @@
 export type QuestionType =
   | 'multiple-choice'
   | 'true-false'
-  | 'True-False'
   | 'fill-blank'
   | 'voice'
   | 'match';
@@ -89,6 +88,7 @@ export interface SceneLayout {
   lightColor: string;
   ambientColor: string;
   accentColor: string;
+  skyboxUrl?: string;
 }
 
 export interface NPC {
